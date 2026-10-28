@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisRAG — Agentic Email Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #090d16; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top App Navigation & Search Bar -->
+  <header class="h-16 flex-none bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between z-20">
+    <!-- Brand / Logo -->
+    <div class="flex items-center gap-3 w-64 flex-none">
+      <a href="/priority" class="flex items-center gap-2.5 text-lg font-bold tracking-tight text-white hover:opacity-90 transition-opacity">
+        <span class="inline-block w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.9)]"></span>
+        <span>Aegis<span class="text-indigo-400">RAG</span></span>
+      </a>
+      <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider
+                   {% if mode == 'demo' %}bg-amber-950 text-amber-300 border border-amber-800/80{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/80{% endif %}">
+        {{ mode }}
+      </span>
+    </div>
+
+    <!-- Top Search Bar (Debounced 300ms) -->
+    <div class="flex-1 max-w-2xl px-4">
+      <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="search"
+          name="q"
+          value="{{ query or '' }}"
+          placeholder="Search by subject, sender, or snippet in {{ active_tab_title }}..."
+          class="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+          hx-get="/{{ active_tab }}"
+          hx-trigger="input changed delay:300ms, search"
+          hx-target="#main-tab-content"
+          hx-indicator="#search-spinner"
+          autocomplete="off"
+        >
+        <div id="search-spinner" class="htmx-indicator absolute inset-y-0 right-0 pr-3.5 flex items-center">
+          <svg class="animate-spin h-4 w-4 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="flex items-center gap-3 w-64 justify-end flex-none text-xs">
+      <a href="/docs" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors flex items-center gap-1.5">
+        <span>Swagger API</span>
+        <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+      </a>
+      <a href="/settings" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors" title="Settings">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Body Layout: Sidebar + Content Area -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Left Sidebar with Tabs -->
+    <aside class="w-64 flex-none bg-slate-900/60 border-r border-slate-800/80 p-3 flex flex-col justify-between">
+      <nav class="space-y-1">
+        <!-- Priority Tab (Home) -->
+        <a href="/priority"
+           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                  {% if active_tab == 'priority' %}bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold{% else %}text-slate-300 hover:bg-slate-800/60 hover:text-white{% endif %}">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <span>Priority</span>
+          </div>
+          <span id="badge-priority-count" class="px-2 py-0.5 rounded-full text-xs font-semibold {% if counts.priority > 0 %}bg-indigo-500/30 text-indigo-300{% else %}bg-slate-800 text-slate-500{% endif %}">
+            {{ counts.priority }}
+          </span>
+        </a>
+
+        <!-- Previous Messages Tab -->
+        <a href="/previous"
+           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                  {% if active_tab == 'previous' %}bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold{% else %}text-slate-300 hover:bg-slate-800/60 hover:text-white{% endif %}">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Previous</span>
+          </div>
+          <span id="badge-previous-count" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400">
+            {{ counts.previous }}
+          </span>
+        </a>
+
+        <!-- Feed Tab (Newsletters) -->
+        <a href="/feed"
+           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                  {% if active_tab == 'feed' %}bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold{% else %}text-slate-300 hover:bg-slate-800/60 hover:text-white{% endif %}">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+            <span>Feed</span>
+          </div>
+          <span id="badge-feed-count" class="px-2 py-0.5 rounded-full text-xs font-semibold {% if counts.feed > 0 %}bg-purple-950 text-purple-300 border border-purple-800/60{% else %}bg-slate-800 text-slate-500{% endif %}">
+            {{ counts.feed }}
+          </span>
+        </a>
+
+        <!-- Flagged / Fraud Tab -->
+        <a href="/flagged"
+           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                  {% if active_tab == 'flagged' %}bg-rose-950/40 text-rose-300 border border-rose-800/50 font-semibold{% else %}text-slate-300 hover:bg-slate-800/60 hover:text-white{% endif %}">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Flagged / Fraud</span>
+          </div>
+          <span id="badge-flagged-count" class="px-2 py-0.5 rounded-full text-xs font-semibold {% if counts.flagged > 0 %}bg-rose-900/60 text-rose-200 border border-rose-700/60{% else %}bg-slate-800 text-slate-500{% endif %}">
+            {{ counts.flagged }}
+          </span>
+        </a>
+
+        <!-- Settings Tab -->
+        <a href="/settings"
+           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                  {% if active_tab == 'settings' %}bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-semibold{% else %}text-slate-300 hover:bg-slate-800/60 hover:text-white{% endif %}">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Settings</span>
+          </div>
+        </a>
+      </nav>
+
+      <!-- Bottom Quick Sync Button -->
+      <div class="pt-4 border-t border-slate-800/80">
+        <button
+          hx-post="/api/emails/sync"
+          hx-target="#sync-feedback"
+          hx-swap="innerHTML"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700/80 transition-colors shadow-sm">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>Sync Emails</span>
+        </button>
+        <div id="sync-feedback" class="mt-2 text-[11px] text-center text-slate-400"></div>
+      </div>
+    </aside>
+
+    <!-- Main Content Tab Panel -->
+    <main id="main-tab-content" class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- Vanilla JS for Inner Panel Tab Switching & Row Chevrons -->
+  <script>
+    function switchInnerTab(emailId, tabName) {
+      const panel = document.getElementById(`panel-${emailId}`);
+      if (!panel) return;
+
+      // Update tab buttons
+      const tabButtons = panel.querySelectorAll('[data-inner-tab]');
+      tabButtons.forEach(btn => {
+        if (btn.getAttribute('data-inner-tab') === tabName) {
+          btn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition-colors';
+        } else {
+          btn.className = 'px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors';
+        }
+      });
+
+      // Update tab content panels
+      const contents = panel.querySelectorAll('[data-inner-content]');
+      contents.forEach(content => {
+        if (content.getAttribute('data-inner-content') === tabName) {
+          content.classList.remove('hidden');
+        } else {
+          content.classList.add('hidden');
+        }
+      });
+    }
+
+    function toggleRowExpand(emailId) {
+      const panelContainer = document.getElementById(`panel-container-${emailId}`);
+      const chevron = document.getElementById(`chevron-${emailId}`);
+      const unreadDot = document.getElementById(`unread-dot-${emailId}`);
+
+      if (!panelContainer) return;
+
+      if (panelContainer.classList.contains('hidden')) {
+        panelContainer.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-180');
+        if (unreadDot) unreadDot.classList.add('opacity-0');
+      } else {
+        panelContainer.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+      }
+    }
+  </script>
+</body>
+</html>
+

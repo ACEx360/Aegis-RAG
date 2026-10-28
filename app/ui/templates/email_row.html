@@ -1,0 +1,99 @@
+<!-- Collapsible Email Row (Swagger-Style) -->
+<div id="email-row-{{ email.id }}" class="border-l-4 rounded-xl border border-slate-800/80 mb-2.5 transition-all duration-150 overflow-hidden {{ style.border_class }}">
+
+  <!-- Main Collapsible Header Button -->
+  <button
+    id="row-btn-{{ email.id }}"
+    type="button"
+    onclick="toggleRowExpand('{{ email.id }}')"
+    class="w-full px-4 py-3 text-left flex items-center justify-between gap-4 hover:bg-slate-800/30 transition-colors focus:outline-none">
+
+    <!-- Left: Unread dot + Sender + Badges -->
+    <div class="flex items-center gap-3 min-w-0 flex-1">
+      <!-- Unread indicator -->
+      <span id="unread-dot-{{ email.id }}" class="w-2 h-2 rounded-full flex-none transition-opacity {% if email.is_unread %}bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.8)]{% else %}opacity-0{% endif %}"></span>
+
+      <!-- Sender name / address -->
+      <span class="w-44 flex-none text-xs truncate {% if email.is_unread %}font-bold text-white{% else %}font-medium text-slate-300{% endif %}">
+        {{ email.sender }}
+      </span>
+
+      <!-- Badges -->
+      <div class="flex items-center gap-1.5 flex-none text-[11px]">
+        <!-- Fraud Badge -->
+        {% if style.is_fraud %}
+          <span class="px-2 py-0.5 rounded-full font-semibold bg-rose-950 text-rose-300 border border-rose-800/80 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+            Phishing {{ style.fraud_pct }}%
+          </span>
+        {% endif %}
+
+        <!-- Priority Badge -->
+        {% if style.is_high_priority %}
+          <span class="px-2 py-0.5 rounded-full font-semibold bg-amber-950 text-amber-300 border border-amber-800/80">
+            High Priority
+          </span>
+        {% elif style.priority_label == 'Medium' %}
+          <span class="px-2 py-0.5 rounded-full font-medium bg-slate-800 text-slate-300 border border-slate-700/60">
+            Medium
+          </span>
+        {% elif style.priority_label == 'Low' %}
+          <span class="px-2 py-0.5 rounded-full font-medium bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+            Low
+          </span>
+        {% elif style.is_unanalyzed %}
+          <span class="px-2 py-0.5 rounded-full font-medium bg-slate-800 text-slate-400 border border-slate-700/60">
+            Not analyzed yet
+          </span>
+        {% endif %}
+
+        <!-- Newsletter Badge -->
+        {% if style.is_newsletter %}
+          <span class="px-2 py-0.5 rounded-full font-medium bg-purple-950/80 text-purple-300 border border-purple-800/60">
+            Newsletter
+          </span>
+        {% endif %}
+      </div>
+
+      <!-- Subject & Snippet Preview -->
+      <div class="min-w-0 flex-1 flex items-baseline gap-2 truncate">
+        <span class="text-xs truncate {% if email.is_unread %}font-semibold text-white{% else %}text-slate-300{% endif %}">
+          {{ email.subject or '(No subject)' }}
+        </span>
+        <span class="text-xs text-slate-500 truncate hidden md:inline">
+          — {{ email.snippet }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Right: Date + Chevron Indicator -->
+    <div class="flex items-center gap-3 flex-none text-right">
+      <span class="text-[11px] text-slate-400 whitespace-nowrap">
+        {{ email.date.strftime('%b %d, %I:%M %p') if email.date else '' }}
+      </span>
+
+      <!-- Collapsible Chevron -->
+      <svg id="chevron-{{ email.id }}" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </button>
+
+  <!-- Lazy Loaded Expanded Panel (Fetched via POST on first expansion, marking opened) -->
+  <div
+    id="panel-container-{{ email.id }}"
+    class="hidden"
+    hx-post="/ui/emails/{{ email.id }}/panel"
+    hx-trigger="click once from:#row-btn-{{ email.id }}"
+    hx-target="#panel-container-{{ email.id }}"
+    hx-swap="innerHTML">
+    <div class="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+      <svg class="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      </svg>
+      <span>Loading message analysis...</span>
+    </div>
+  </div>
+</div>
+

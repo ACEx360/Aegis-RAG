@@ -1,0 +1,19 @@
+<!-- Paginated Chunk of Email Rows -->
+{% for item in emails %}
+  {% with email=item.email, style=item.style, counts=counts %}
+    {% include "email_row.html" %}
+  {% endwith %}
+{% endfor %}
+
+{% if has_more %}
+  <div id="load-more-container" class="pt-4 text-center">
+    <button
+      hx-get="/{{ active_tab }}?skip={{ next_skip }}&q={{ query or '' }}"
+      hx-target="#load-more-container"
+      hx-swap="outerHTML"
+      class="px-5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition-colors shadow-sm">
+      Load More Emails ({{ total_count - next_skip }} remaining)
+    </button>
+  </div>
+{% endif %}
+

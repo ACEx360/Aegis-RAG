@@ -1,0 +1,84 @@
+<!-- Email List Container -->
+<div class="space-y-4 max-w-6xl mx-auto">
+
+  <!-- Header & Tab Title -->
+  <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+    <div>
+      <h2 class="text-lg font-bold text-white flex items-center gap-2">
+        <span>{{ active_tab_title }}</span>
+        <span class="text-xs font-normal text-slate-400">({{ total_count }} total)</span>
+      </h2>
+      <p class="text-xs text-slate-400 mt-0.5">{{ active_tab_desc }}</p>
+    </div>
+
+    <!-- Active query indicator if searching -->
+    {% if query %}
+      <div class="flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
+        <span>Filter: <strong class="text-white">"{{ query }}"</strong></span>
+        <a href="/{{ active_tab }}" class="text-indigo-400 hover:text-indigo-300 font-semibold">&times; Clear</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Priority Tab Banner: Flagged items alert (§9) -->
+  {% if active_tab == 'priority' and flagged_banner_count and flagged_banner_count > 0 %}
+    <div class="p-3.5 rounded-xl bg-rose-950/40 border border-rose-800/60 flex items-center justify-between text-xs text-rose-300">
+      <div class="flex items-center gap-2.5">
+        <svg class="w-4 h-4 text-rose-400 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span><strong>{{ flagged_banner_count }}</strong> email(s) flagged as potential phishing/fraud.</span>
+      </div>
+      <a href="/flagged" class="font-semibold text-rose-400 hover:text-rose-300 underline underline-offset-2 flex items-center gap-1">
+        Review in Flagged / Fraud &rarr;
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- Email Rows List -->
+  <div id="email-list">
+    {% if emails %}
+      {% for item in emails %}
+        {% with email=item.email, style=item.style, counts=counts %}
+          {% include "email_row.html" %}
+        {% endwith %}
+      {% endfor %}
+    {% else %}
+      <!-- Empty state -->
+      <div class="py-16 text-center space-y-3 rounded-2xl bg-slate-900/30 border border-slate-800/60">
+        <div class="inline-flex p-3 rounded-full bg-slate-800/60 text-slate-400">
+          <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-300">No emails found in {{ active_tab_title }}</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto">
+          {% if query %}
+            No messages match your search filter. Try clearing the search bar.
+          {% elif active_tab == 'priority' %}
+            You're all caught up! Unread messages appear here sorted by priority.
+          {% elif active_tab == 'previous' %}
+            Read or opened emails will be archived here.
+          {% elif active_tab == 'feed' %}
+            No newsletter or promotion emails detected.
+          {% elif active_tab == 'flagged' %}
+            No suspicious emails have been detected.
+          {% endif %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Pagination: Load More Button (50 items per page) -->
+  {% if has_more %}
+    <div id="load-more-container" class="pt-4 text-center">
+      <button
+        hx-get="/{{ active_tab }}?skip={{ next_skip }}&q={{ query or '' }}"
+        hx-target="#load-more-container"
+        hx-swap="outerHTML"
+        class="px-5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition-colors shadow-sm">
+        Load More Emails ({{ total_count - next_skip }} remaining)
+      </button>
+    </div>
+  {% endif %}
+</div>

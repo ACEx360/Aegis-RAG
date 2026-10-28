@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets & credentials (§3)
+credentials.json
+token.json
+.env
+
+# Database (§3)
+*.db
+*.sqlite3
+
+# Data directory (§3)
+data/

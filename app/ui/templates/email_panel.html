@@ -1,0 +1,160 @@
+<!-- Inner Expanded Panel for Email {{ email.id }} (Swagger-Style Inner Tabs) -->
+<div id="panel-{{ email.id }}" class="border-t border-slate-800/80 bg-slate-950/70 p-4 sm:p-6 space-y-4">
+
+  <!-- Inner Tab Navigation -->
+  <div class="flex items-center gap-1.5 border-b border-slate-800/80 pb-3 overflow-x-auto text-xs">
+    <button
+      type="button"
+      data-inner-tab="summary"
+      onclick="switchInnerTab('{{ email.id }}', 'summary')"
+      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition-colors">
+      Summary
+    </button>
+    <button
+      type="button"
+      data-inner-tab="explanation"
+      onclick="switchInnerTab('{{ email.id }}', 'explanation')"
+      class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+      Verified Explanation
+    </button>
+    <button
+      type="button"
+      data-inner-tab="detection"
+      onclick="switchInnerTab('{{ email.id }}', 'detection')"
+      class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+      Detection Layers
+    </button>
+    <button
+      type="button"
+      data-inner-tab="headers"
+      onclick="switchInnerTab('{{ email.id }}', 'headers')"
+      class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+      Headers
+    </button>
+    <button
+      type="button"
+      data-inner-tab="body"
+      onclick="switchInnerTab('{{ email.id }}', 'body')"
+      class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+      Body
+    </button>
+  </div>
+
+  <!-- Inner Tab 1: Summary -->
+  <div data-inner-content="summary" class="space-y-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+      <!-- Sender & Delivery Details -->
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+        <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Delivery Metadata</div>
+        <div><span class="text-slate-400">From:</span> <span class="text-slate-200 font-medium">{{ email.sender }}</span></div>
+        <div><span class="text-slate-400">To:</span> <span class="text-slate-200">{{ recipients|join(', ') }}</span></div>
+        <div><span class="text-slate-400">Date:</span> <span class="text-slate-200">{{ email.date.strftime('%B %d, %Y at %I:%M %p UTC') if email.date else 'Unknown' }}</span></div>
+        <div><span class="text-slate-400">Gmail ID:</span> <span class="font-mono text-slate-300 text-[11px]">{{ email.gmail_id }}</span></div>
+      </div>
+
+      <!-- Analysis Status & Scores -->
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+        <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Triage Indicators</div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Priority Score:</span>
+          {% if email.priority_score is not none %}
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if email.priority_score >= 70 %}bg-amber-950 text-amber-300 border border-amber-800/60{% elif email.priority_score <= 30 %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% else %}bg-slate-800 text-slate-300{% endif %}">
+              {{ email.priority_score|int }}/100 ({{ email.priority_label or 'Normal' }})
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">Not analyzed yet</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Fraud Confidence:</span>
+          {% if email.fraud_score is not none %}
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if email.fraud_score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
+              {{ (email.fraud_score * 100)|int }}% {% if email.fraud_score >= 0.5 %}(Likely Threat){% else %}(Low Risk){% endif %}
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">Not analyzed yet</span>
+          {% endif %}
+        </div>
+        <div>
+          <span class="text-slate-400">Newsletter Signal:</span>
+          <span class="text-slate-200">{{ 'Yes' if style.is_newsletter else 'No' }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400">Attachments:</span>
+          <span class="text-slate-200">{{ email.attachment_meta|length if email.has_attachments else 'None' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snippet preview -->
+    <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs">
+      <span class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block mb-1">Snippet</span>
+      <p class="text-slate-300 leading-relaxed">{{ email.snippet or 'No snippet available.' }}</p>
+    </div>
+  </div>
+
+  <!-- Inner Tab 2: Verified Explanation (Placeholder for Stage 5) -->
+  <div data-inner-content="explanation" class="hidden">
+    <div class="p-6 rounded-xl bg-slate-900/50 border border-slate-800/80 text-center space-y-3">
+      <div class="inline-flex p-3 rounded-full bg-indigo-950/60 border border-indigo-800/60 text-indigo-400">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      </div>
+      <h4 class="text-sm font-semibold text-slate-200">Claim-Level Explanation Verification Coming in Stage 5</h4>
+      <p class="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+        In Stage 5, the generated explanation will be broken into atomic factual claims by Gemini and each claim will be verified against retrieved evidence snippets using an NLI cross-encoder model (<span class="font-mono text-indigo-300">{{ nli_model }}</span>). Unsupported or contradicted claims will be visibly flagged.
+      </p>
+    </div>
+  </div>
+
+  <!-- Inner Tab 3: Detection Layers (Placeholder for Stage 4) -->
+  <div data-inner-content="detection" class="hidden">
+    <div class="p-6 rounded-xl bg-slate-900/50 border border-slate-800/80 text-center space-y-3">
+      <div class="inline-flex p-3 rounded-full bg-rose-950/60 border border-rose-800/60 text-rose-400">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h4 class="text-sm font-semibold text-slate-200">Multi-Layer Threat Detection Coming in Stage 4</h4>
+      <p class="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+        In Stage 4, this panel will display breakdown scores and diagnostic reasons from all detection providers: Sender Authentication (SPF, DKIM, DMARC), URL heuristics, threat feeds (Safe Browsing & VirusTotal), and LLM social engineering analysis.
+      </p>
+    </div>
+  </div>
+
+  <!-- Inner Tab 4: Headers (All Headers incl. Duplicates) -->
+  <div data-inner-content="headers" class="hidden space-y-2">
+    <div class="text-[11px] text-slate-400 flex items-center justify-between">
+      <span>Raw Headers ({{ raw_headers|length }} entries, preserving duplicates):</span>
+    </div>
+    <div class="max-h-80 overflow-y-auto rounded-xl bg-slate-950/80 border border-slate-800/80 p-3 space-y-1 font-mono text-xs">
+      {% for h in raw_headers %}
+        <div class="grid grid-cols-12 gap-2 py-1 border-b border-slate-800/40 hover:bg-slate-900/40 px-1 rounded transition-colors">
+          <div class="col-span-12 sm:col-span-3 text-slate-400 font-semibold truncate">{{ h.name }}</div>
+          <div class="col-span-12 sm:col-span-9 text-slate-200 break-all select-all">{{ h.value }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Inner Tab 5: Body (Strictly Plain Text, No HTML Rendering) -->
+  <div data-inner-content="body" class="hidden space-y-2">
+    <div class="text-[11px] text-slate-400">Plain Text Body (HTML rendering disabled for security):</div>
+    <pre class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words max-h-96 overflow-y-auto select-text">{{ email.body_text or 'No plain text content provided in this email.' }}</pre>
+  </div>
+
+  <!-- Out-of-band Tab Badge Counters Update (Updates sidebar badges on open!) -->
+  <span id="badge-priority-count" hx-swap-oob="true" class="px-2 py-0.5 rounded-full text-xs font-semibold {% if counts.priority > 0 %}bg-indigo-500/30 text-indigo-300{% else %}bg-slate-800 text-slate-500{% endif %}">
+    {{ counts.priority }}
+  </span>
+  <span id="badge-previous-count" hx-swap-oob="true" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400">
+    {{ counts.previous }}
+  </span>
+  <span id="badge-feed-count" hx-swap-oob="true" class="px-2 py-0.5 rounded-full text-xs font-semibold {% if counts.feed > 0 %}bg-purple-950 text-purple-300 border border-purple-800/60{% else %}bg-slate-800 text-slate-500{% endif %}">
+    {{ counts.feed }}
+  </span>
+  <span id="badge-flagged-count" hx-swap-oob="true" class="px-2 py-0.5 rounded-full text-xs font-semibold {% if counts.flagged > 0 %}bg-rose-900/60 text-rose-200 border border-rose-700/60{% else %}bg-slate-800 text-slate-500{% endif %}">
+    {{ counts.flagged }}
+  </span>
+</div>

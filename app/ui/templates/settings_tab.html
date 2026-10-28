@@ -1,0 +1,130 @@
+<!-- Settings Tab View -->
+<div class="max-w-4xl mx-auto space-y-6">
+
+  <!-- Header -->
+  <div class="pb-3 border-b border-slate-800/80">
+    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+      <svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      <span>Application Settings & Authentication</span>
+    </h2>
+    <p class="text-xs text-slate-400 mt-0.5">Manage runtime modes, Gmail OAuth connection, and pipeline parameters.</p>
+  </div>
+
+  <!-- Runtime Mode Card -->
+  <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-semibold text-white">Active Operational Mode</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Toggle between zero-configuration Demo Mode and live Gmail synchronization.</p>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+                   {% if mode == 'demo' %}bg-amber-950 text-amber-300 border border-amber-800/80{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/80{% endif %}">
+        Current Mode: {{ mode }}
+      </span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 pt-2">
+      <button
+        hx-post="/api/mode?mode=demo"
+        hx-swap="none"
+        onclick="setTimeout(() => location.reload(), 300)"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-colors">
+        Switch to Demo Mode
+      </button>
+
+      <button
+        hx-post="/api/mode?mode=real"
+        hx-swap="none"
+        onclick="setTimeout(() => location.reload(), 300)"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-colors">
+        Switch to Real Gmail Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Gmail OAuth Status Card -->
+  <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
+    <h3 class="text-sm font-semibold text-white">Gmail Integration Status</h3>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between">
+        <span class="text-slate-400">Authenticated:</span>
+        {% if auth_status.authenticated %}
+          <span class="text-emerald-400 font-semibold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Connected
+          </span>
+        {% else %}
+          <span class="text-amber-400 font-semibold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span> Disconnected
+          </span>
+        {% endif %}
+      </div>
+
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between">
+        <span class="text-slate-400">OAuth in Progress:</span>
+        <span class="font-mono text-slate-300">{{ "Yes" if auth_status.oauth_in_progress else "No" }}</span>
+      </div>
+
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between">
+        <span class="text-slate-400">credentials.json:</span>
+        <span class="font-mono {{ 'text-emerald-400' if auth_status.credentials_present else 'text-rose-400' }}">
+          {{ "Found" if auth_status.credentials_present else "Missing" }}
+        </span>
+      </div>
+
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between">
+        <span class="text-slate-400">token.json:</span>
+        <span class="font-mono {{ 'text-emerald-400' if auth_status.token_present else 'text-slate-500' }}">
+          {{ "Stored" if auth_status.token_present else "Not generated" }}
+        </span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button
+        hx-post="/api/auth/login"
+        hx-swap="none"
+        onclick="alert('Starting desktop OAuth flow... Complete authentication in your browser.')"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-colors disabled:opacity-50"
+        {% if not auth_status.credentials_present or auth_status.oauth_in_progress %}disabled{% endif %}>
+        Connect Gmail Account
+      </button>
+
+      <button
+        hx-post="/api/emails/sync"
+        hx-target="#settings-sync-result"
+        hx-swap="innerHTML"
+        class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-colors">
+        Sync Emails Now
+      </button>
+    </div>
+
+    <div id="settings-sync-result" class="text-xs text-slate-300 font-mono"></div>
+  </div>
+
+  <!-- Pipeline Parameters & Thresholds Card -->
+  <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-3">
+    <h3 class="text-sm font-semibold text-white">Pipeline Thresholds (from settings.py)</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+        <div class="text-slate-500 text-[10px] uppercase font-semibold">Fraud Threshold</div>
+        <div class="text-base font-bold text-rose-400 mt-1">{{ (thresholds.fraud_threshold * 100)|int }}%</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">Emails above this floor route to Flagged / Fraud</div>
+      </div>
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+        <div class="text-slate-500 text-[10px] uppercase font-semibold">Priority High Cutoff</div>
+        <div class="text-base font-bold text-amber-400 mt-1">{{ thresholds.priority_high_threshold|int }}/100</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">Classifies email as High Priority</div>
+      </div>
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+        <div class="text-slate-500 text-[10px] uppercase font-semibold">Priority Low Cutoff</div>
+        <div class="text-base font-bold text-emerald-400 mt-1">{{ thresholds.priority_low_threshold|int }}/100</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">Classifies email as Low Priority</div>
+      </div>
+    </div>
+  </div>
+</div>
+

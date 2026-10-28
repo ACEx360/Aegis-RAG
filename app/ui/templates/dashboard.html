@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% if active_tab == 'settings' %}
+    {% include "settings_tab.html" %}
+  {% else %}
+    {% include "email_list.html" %}
+  {% endif %}
+{% endblock %}
+
