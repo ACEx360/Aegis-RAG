@@ -9,10 +9,12 @@ Design decisions:
 
 from __future__ import annotations
 
+import email.utils
 import json
 import logging
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 
 from app.settings import settings
 
@@ -146,16 +148,80 @@ class GmailClient:
         self._service = build("gmail", "v1", credentials=creds)
         return self._service
 
-    def list_message_ids(self, max_results: int = 50) -> list[dict]:
-        """Return a list of {id, threadId} stubs from the user's inbox."""
+    def list_message_ids(
+        self,
+        max_results: int | None = None,
+        sync_days: int | None = None,
+        query: str | None = None,
+    ) -> list[dict]:
+        """Return a list of {id, threadId} stubs from Gmail within the sync window."""
         service = self._get_service()
-        result = (
-            service.users()
-            .messages()
-            .list(userId="me", maxResults=max_results)
-            .execute()
-        )
+        max_res = max_results if max_results is not None else settings.sync_max
+        days = sync_days if sync_days is not None else settings.sync_days
+
+        q_parts: list[str] = []
+        if days:
+            q_parts.append(f"newer_than:{days}d")
+        if query:
+            q_parts.append(query)
+        q = " ".join(q_parts) if q_parts else None
+
+        params: dict[str, Any] = {"userId": "me", "maxResults": max_res}
+        if q:
+            params["q"] = q
+
+        result = service.users().messages().list(**params).execute()
         return result.get("messages", [])
+
+    def fetch_sent_contacts(self, days: int | None = None) -> set[str]:
+        """Fetch recipients of sent emails from the last `days` days.
+
+        Uses Gmail query 'in:sent newer_than:{days}d', fetches minimal metadata
+        (To and Cc headers only), and extracts unique lowercased email addresses.
+        Runs separately from inbox sync so it does NOT consume SYNC_MAX.
+        """
+        days_window = days if days is not None else settings.sent_days
+        service = self._get_service()
+        query = f"in:sent newer_than:{days_window}d"
+
+        contacts: set[str] = set()
+        try:
+            resp = (
+                service.users()
+                .messages()
+                .list(userId="me", q=query, maxResults=500)
+                .execute()
+            )
+            messages = resp.get("messages", [])
+            for m in messages:
+                msg_id = m.get("id")
+                if not msg_id:
+                    continue
+                try:
+                    msg = (
+                        service.users()
+                        .messages()
+                        .get(
+                            userId="me",
+                            id=msg_id,
+                            format="metadata",
+                            metadataHeaders=["To", "Cc"],
+                        )
+                        .execute()
+                    )
+                    headers = msg.get("payload", {}).get("headers", [])
+                    for h in headers:
+                        if h.get("name", "").lower() in ("to", "cc"):
+                            val = h.get("value", "")
+                            for _, addr in email.utils.getaddresses([val]):
+                                if addr and "@" in addr:
+                                    contacts.add(addr.strip().lower())
+                except Exception as exc:
+                    logger.debug("Failed to fetch sent contact metadata for %s: %s", msg_id, exc)
+        except Exception as exc:
+            logger.warning("Failed to list sent messages for contacts: %s", exc)
+
+        return contacts
 
     def get_message(self, msg_id: str) -> dict:
         """Fetch a single message in full format (headers + body)."""

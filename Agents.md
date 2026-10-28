@@ -155,3 +155,14 @@ tests/
   passes SPF, mark 4-5 as already read, use dates relative to now, use
   fake/reserved domains for phishing.
 - Include tests/test_normalizer.py.
+
+## 15. Status and decisions so far
+- Stages 1 and 2 completed and verified.
+- GET endpoints never change data; opening an email sets `opened_at` via `POST /api/emails/{id}/open` (and `POST /ui/emails/{id}/panel`).
+- Newsletters appear strictly in Feed tab; Priority tab excludes flagged mail (`fraud_score >= threshold`) and shows an "N flagged" banner.
+- Placeholder scores apply only to `is_demo=True` emails; real emails show "Not analyzed yet" (`NULL` scores).
+- Pipeline thresholds and configuration parameters live in `settings.py`.
+- `app/llm/` holds the Gemini client with SQLite caching keyed by `(gmail_id, task_type, prompt_version)` and 429 exponential backoff retry.
+- Email HTML is never rendered; plain text only (`body_text`), using a sandboxed iframe if HTML is ever previewed.
+- `uv` is the standard project tooling.
+- Stage 3 decisions: `torch` + `sentence-transformers` approved for embeddings; use NumPy cosine similarity over stored embeddings (no FAISS); system constructs numbered evidence items and Gemini cites them; prompt injection safeguards with delimited email data and rule caps.

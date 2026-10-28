@@ -52,6 +52,7 @@ class EmailDetailResponse(EmailListResponse):
     """Full detail view of an email, excluding body_html by default (§14)."""
 
     body_text: str = ""
+    links: list[dict[str, str]] = Field(default_factory=list)
     raw_headers: list[HeaderPair] = Field(default_factory=list)
     attachment_meta: list[dict[str, Any]] = Field(default_factory=list)
 

@@ -31,6 +31,7 @@ class EmailSchema(BaseModel):
     date: dt.datetime | None = None
     body_text: str = ""
     body_html: str = ""
+    links: list[dict[str, str]] = []
     snippet: str = ""
     labels: list[str] = []
     raw_headers: list[HeaderPair] = []

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import html
 import json
 import logging
 import threading
@@ -167,14 +168,19 @@ def _sync_demo(db: Session) -> SyncResponse:
     added = 0
     updated = 0
 
+    from app.ingest.normalizer import extract_all_links
+
     for item in demo_items:
         schema = item.schema
+        links_data = schema.links if schema.links else extract_all_links(body_html=schema.body_html, body_text=schema.body_text)
         existing = db.query(Email).filter(Email.gmail_id == schema.gmail_id).first()
         if existing:
             # Refresh labels and read state per §14
             existing.labels = json.dumps(schema.labels)
             existing.is_read = schema.is_read
             existing.snippet = schema.snippet
+            if not existing.links or existing.links == "[]":
+                existing.links = json.dumps(links_data)
             if existing.priority_score is None:
                 assign_placeholder_scores(existing)
             updated += 1
@@ -189,6 +195,7 @@ def _sync_demo(db: Session) -> SyncResponse:
                 date=schema.date,
                 body_text=schema.body_text,
                 body_html=schema.body_html,
+                links=json.dumps(links_data),
                 snippet=schema.snippet,
                 labels=json.dumps(schema.labels),
                 raw_headers=json.dumps(raw_headers_dicts),
@@ -216,7 +223,10 @@ def _sync_demo(db: Session) -> SyncResponse:
 def _sync_gmail(db: Session) -> SyncResponse:
     """Sync from Gmail API: ingest new and refresh labels/read-status of existing."""
     try:
-        messages = gmail_client.list_message_ids(max_results=50)
+        messages = gmail_client.list_message_ids(
+            max_results=settings.sync_max,
+            sync_days=settings.sync_days,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -240,7 +250,10 @@ def _sync_gmail(db: Session) -> SyncResponse:
                 existing.labels = json.dumps(new_labels)
                 existing.is_read = "UNREAD" not in new_labels
                 if min_info.get("snippet"):
-                    existing.snippet = min_info["snippet"]
+                    existing.snippet = html.unescape(min_info["snippet"])
+                if not existing.links or existing.links == "[]":
+                    from app.ingest.normalizer import extract_all_links
+                    existing.links = json.dumps(extract_all_links(existing.body_html, existing.body_text))
                 updated += 1
             except Exception as e:
                 logger.warning("Failed to refresh metadata for %s: %s", msg_id, e)
@@ -259,6 +272,7 @@ def _sync_gmail(db: Session) -> SyncResponse:
                     date=schema.date,
                     body_text=schema.body_text,
                     body_html=schema.body_html,
+                    links=json.dumps(schema.links),
                     snippet=schema.snippet,
                     labels=json.dumps(schema.labels),
                     raw_headers=json.dumps(raw_headers_dicts),

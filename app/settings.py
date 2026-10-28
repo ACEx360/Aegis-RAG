@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     db_url: str = f"sqlite:///{PROJECT_ROOT / 'aegis.db'}"
 
+    # --- Sync Window -----------------------------------------------------
+    sync_days: int = 14
+    sync_max: int = 100
+    sent_days: int = 90
+
     # --- Thresholds (§7, §8, §9) -----------------------------------------
     fraud_threshold: float = 0.5
     priority_high_threshold: float = 70.0

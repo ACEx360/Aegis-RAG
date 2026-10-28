@@ -10,8 +10,144 @@ from __future__ import annotations
 import base64
 import datetime as dt
 from email.utils import parsedate_to_datetime
+import html
+from html.parser import HTMLParser
+import re
+from typing import Any
 
 from app.ingest.schemas import EmailSchema, HeaderPair
+
+URL_REGEX = re.compile(r'https?://[^\s<>"\'`()]+|www\.[^\s<>"\'`()]+')
+
+
+class SafeHTMLToTextParser(HTMLParser):
+    """Safely extracts plain text and anchor links from HTML.
+
+    - Drops script, style, head, noscript, and meta tags.
+    - Converts block elements into newlines.
+    - Preserves anchor display text within the plain-text stream.
+    - Extracts anchor links as {"text": anchor_text, "href": href} pairs.
+    """
+
+    IGNORED_TAGS = {"script", "style", "head", "title", "meta", "noscript"}
+    BLOCK_TAGS = {
+        "p", "div", "br", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+        "hr", "blockquote", "table", "section", "article", "header", "footer"
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.text_parts: list[str] = []
+        self.links: list[dict[str, str]] = []
+        self.tag_stack: list[str] = []
+        self.current_anchor: dict[str, Any] | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag_lower = tag.lower()
+        self.tag_stack.append(tag_lower)
+        if tag_lower in self.BLOCK_TAGS:
+            self.text_parts.append("\n")
+        if tag_lower == "a":
+            href = ""
+            for attr_name, attr_val in attrs:
+                if attr_name.lower() == "href" and attr_val:
+                    href = attr_val.strip()
+                    break
+            self.current_anchor = {"text_parts": [], "href": href}
+
+    def handle_endtag(self, tag: str) -> None:
+        tag_lower = tag.lower()
+        if self.tag_stack and self.tag_stack[-1] == tag_lower:
+            self.tag_stack.pop()
+        elif tag_lower in self.tag_stack:
+            self.tag_stack.remove(tag_lower)
+
+        if tag_lower == "a" and self.current_anchor is not None:
+            anchor_text = "".join(self.current_anchor["text_parts"]).strip()
+            href = self.current_anchor["href"]
+            if href:
+                self.links.append({"text": anchor_text, "href": href})
+            self.current_anchor = None
+        elif tag_lower in self.BLOCK_TAGS:
+            self.text_parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if any(t in self.IGNORED_TAGS for t in self.tag_stack):
+            return
+        if self.current_anchor is not None:
+            self.current_anchor["text_parts"].append(data)
+        self.text_parts.append(data)
+
+    def get_text(self) -> str:
+        raw_text = "".join(self.text_parts)
+        lines = [re.sub(r'[ \t\r\f\v]+', ' ', line).strip() for line in raw_text.split("\n")]
+        cleaned: list[str] = []
+        blank = False
+        for line in lines:
+            if line:
+                cleaned.append(line)
+                blank = False
+            elif not blank and cleaned:
+                cleaned.append("")
+                blank = True
+        return "\n".join(cleaned).strip()
+
+
+def extract_links_from_plain_text(text: str) -> list[dict[str, str]]:
+    """Extract bare URLs from plain text."""
+    if not text:
+        return []
+    links: list[dict[str, str]] = []
+    for match in URL_REGEX.finditer(text):
+        raw_url = match.group(0).rstrip(".,;!?)>]\'\":")
+        if not raw_url:
+            continue
+        href = raw_url if raw_url.startswith(("http://", "https://")) else f"https://{raw_url}"
+        links.append({"text": raw_url, "href": href})
+    return links
+
+
+def extract_all_links(body_html: str = "", body_text: str = "") -> list[dict[str, str]]:
+    """Extract and deduplicate links from HTML and plain text.
+
+    Deduplicates strictly on exact (text, href) pairs so mismatched links
+    (display-text != href) are never dropped (§Part A).
+    """
+    raw_links: list[dict[str, str]] = []
+    if body_html:
+        parser = SafeHTMLToTextParser()
+        try:
+            parser.feed(body_html)
+            parser.close()
+            raw_links.extend(parser.links)
+        except Exception:
+            pass
+
+    if body_text:
+        raw_links.extend(extract_links_from_plain_text(body_text))
+
+    seen: set[tuple[str, str]] = set()
+    deduped: list[dict[str, str]] = []
+    for item in raw_links:
+        key = (item["text"], item["href"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
+    return deduped
+
+
+def derive_body_text_from_html(body_html: str) -> str:
+    """Convert HTML body into clean plain text without rendering it."""
+    if not body_html:
+        return ""
+    parser = SafeHTMLToTextParser()
+    try:
+        parser.feed(body_html)
+        parser.close()
+        return parser.get_text()
+    except Exception:
+        clean = re.sub(r'<[^>]+>', ' ', body_html)
+        return re.sub(r'\s+', ' ', clean).strip()
 
 
 def normalize_message(raw: dict) -> EmailSchema:
@@ -35,7 +171,7 @@ def normalize_message(raw: dict) -> EmailSchema:
         if key not in header_lookup:
             header_lookup[key] = h["value"]
 
-    subject = header_lookup.get("subject", "")
+    subject = html.unescape(header_lookup.get("subject", ""))
     sender = header_lookup.get("from", "")
     to_raw = header_lookup.get("to", "")
     recipients = [r.strip() for r in to_raw.split(",") if r.strip()]
@@ -45,7 +181,13 @@ def normalize_message(raw: dict) -> EmailSchema:
     is_read = "UNREAD" not in labels
 
     body_text, body_html = _extract_body(payload)
+    if not body_text or not body_text.strip():
+        if body_html:
+            body_text = derive_body_text_from_html(body_html)
+
+    links = extract_all_links(body_html=body_html, body_text=body_text)
     attachments = _extract_attachments(payload)
+    snippet = html.unescape(raw.get("snippet", ""))
 
     return EmailSchema(
         gmail_id=raw["id"],
@@ -56,7 +198,8 @@ def normalize_message(raw: dict) -> EmailSchema:
         date=date,
         body_text=body_text,
         body_html=body_html,
-        snippet=raw.get("snippet", ""),
+        links=links,
+        snippet=snippet,
         labels=labels,
         raw_headers=raw_headers,
         has_attachments=len(attachments) > 0,

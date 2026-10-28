@@ -210,6 +210,11 @@ def render_tab(
             "priority_high_threshold": settings.priority_high_threshold,
             "priority_low_threshold": settings.priority_low_threshold,
         }
+        context["sync_window"] = {
+            "sync_days": settings.sync_days,
+            "sync_max": settings.sync_max,
+            "sent_days": settings.sent_days,
+        }
     else:
         all_tab_emails = _fetch_tab_emails(db, active_tab, is_demo, query=q)
         total_count = len(all_tab_emails)
@@ -270,12 +275,14 @@ def get_email_panel_readonly(
     counts = _get_tab_counts(db, app_state.demo_mode)
     raw_headers = parse_json_safely(email_row.raw_headers)
     recipients = parse_json_safely(email_row.recipients)
+    links = parse_json_safely(email_row.links)
 
     context = {
         "request": request,
         "email": email_row,
         "raw_headers": raw_headers,
         "recipients": recipients,
+        "links": links,
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
@@ -297,12 +304,14 @@ def open_and_get_email_panel(
     counts = _get_tab_counts(db, app_state.demo_mode)
     raw_headers = parse_json_safely(email_row.raw_headers)
     recipients = parse_json_safely(email_row.recipients)
+    links = parse_json_safely(email_row.links)
 
     context = {
         "request": request,
         "email": email_row,
         "raw_headers": raw_headers,
         "recipients": recipients,
+        "links": links,
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,

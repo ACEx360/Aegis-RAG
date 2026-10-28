@@ -105,6 +105,28 @@
     <div id="settings-sync-result" class="text-xs text-slate-300 font-mono"></div>
   </div>
 
+  <!-- Sync Window Parameters Card -->
+  <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-3">
+    <h3 class="text-sm font-semibold text-white">Gmail Synchronization Window (from settings.py)</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+        <div class="text-slate-500 text-[10px] uppercase font-semibold">Sync Days Window</div>
+        <div class="text-base font-bold text-indigo-400 mt-1">{{ sync_window.sync_days }} days</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">Ingests emails newer than this threshold</div>
+      </div>
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+        <div class="text-slate-500 text-[10px] uppercase font-semibold">Sync Max Messages</div>
+        <div class="text-base font-bold text-indigo-400 mt-1">{{ sync_window.sync_max }} emails</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">Maximum emails pulled per synchronization pass</div>
+      </div>
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/80">
+        <div class="text-slate-500 text-[10px] uppercase font-semibold">Sent Contacts Window</div>
+        <div class="text-base font-bold text-indigo-400 mt-1">{{ sync_window.sent_days }} days</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">Fetched separately without consuming SYNC_MAX</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Pipeline Parameters & Thresholds Card -->
   <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-3">
     <h3 class="text-sm font-semibold text-white">Pipeline Thresholds (from settings.py)</h3>

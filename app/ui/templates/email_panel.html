@@ -139,9 +139,46 @@
   </div>
 
   <!-- Inner Tab 5: Body (Strictly Plain Text, No HTML Rendering) -->
-  <div data-inner-content="body" class="hidden space-y-2">
-    <div class="text-[11px] text-slate-400">Plain Text Body (HTML rendering disabled for security):</div>
-    <pre class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words max-h-96 overflow-y-auto select-text">{{ email.body_text or 'No plain text content provided in this email.' }}</pre>
+  <div data-inner-content="body" class="hidden space-y-4">
+    <div class="space-y-1.5">
+      <div class="text-[11px] text-slate-400">Plain Text Body (derived safely; HTML rendering disabled for security):</div>
+      <pre class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words max-h-96 overflow-y-auto select-text">{{ email.body_text or 'No plain text content provided in this email.' }}</pre>
+    </div>
+
+    <!-- Extracted Embedded Links (§Part A) -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
+          Extracted Links ({{ links|length }}) — Non-clickable for security
+        </span>
+      </div>
+      {% if links and links|length > 0 %}
+        <div class="rounded-xl border border-slate-800/80 bg-slate-900/50 overflow-hidden divide-y divide-slate-800/60 text-xs">
+          {% for link in links %}
+            {% set is_mismatch = link.text != link.href and (link.text.startswith('http://') or link.text.startswith('https://') or link.text.startswith('www.')) %}
+            <div class="p-3 space-y-1 {% if is_mismatch %}bg-amber-950/20 border-l-2 border-l-amber-500{% endif %}">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-semibold text-slate-400 uppercase">Text:</span>
+                <span class="font-mono text-slate-200 select-all">{{ link.text or '(empty anchor text)' }}</span>
+                {% if is_mismatch %}
+                  <span class="ml-auto px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800/60">
+                    Display Mismatch
+                  </span>
+                {% endif %}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-semibold text-slate-400 uppercase">Target:</span>
+                <span class="font-mono text-indigo-300 select-all break-all">{{ link.href }}</span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs text-slate-500">
+          No embedded URLs or links detected in this email.
+        </div>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Out-of-band Tab Badge Counters Update (Updates sidebar badges on open!) -->

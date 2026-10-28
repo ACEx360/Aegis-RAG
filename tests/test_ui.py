@@ -89,6 +89,8 @@ def test_settings_tab_renders_thresholds_and_status(client: TestClient):
     assert "Current Mode: demo" in resp.text
     assert f"{int(settings.fraud_threshold * 100)}%" in resp.text
     assert f"{int(settings.priority_high_threshold)}" in resp.text
+    assert f"{settings.sync_days} days" in resp.text
+    assert f"{settings.sync_max} emails" in resp.text
 
 
 def test_panel_get_is_readonly_and_does_not_set_opened_at(client: TestClient, db_session: Session):
@@ -244,5 +246,29 @@ def test_search_and_pagination(client: TestClient):
     resp_chunk = client.get("/priority?skip=2&limit=2", headers={"HX-Request": "true"})
     assert resp_chunk.status_code == 200
     assert "email-row-" in resp_chunk.text
-    # Should not include full html wrapper
-    assert "<!DOCTYPE html>" not in resp_chunk.text
+
+
+def test_panel_renders_extracted_links(client: TestClient, db_session: Session):
+    """Panel renders extracted links in the Body tab safely without active links."""
+    import json
+    email = Email(
+        gmail_id="msg_test_links_render",
+        subject="Link rendering test",
+        sender="sender@example.com",
+        body_text="Click below:\nhttps://paypal.com",
+        links=json.dumps([
+            {"text": "https://paypal.com", "href": "https://paypa1-phish.net"},
+            {"text": "Docs", "href": "https://docs.example.com"},
+        ]),
+        is_demo=True,
+    )
+    db_session.add(email)
+    db_session.commit()
+
+    resp = client.get(f"/ui/emails/{email.id}/panel")
+    assert resp.status_code == 200
+    assert "Extracted Links (2)" in resp.text
+    assert "https://paypal.com" in resp.text
+    assert "https://paypa1-phish.net" in resp.text
+    assert "Display Mismatch" in resp.text
+    assert "<!DOCTYPE html>" not in resp.text

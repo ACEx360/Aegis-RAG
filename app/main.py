@@ -35,13 +35,16 @@ async def lifespan(app: FastAPI):
     init_db()
 
     # Seed demo emails automatically if DB has no demo emails yet
-    from app.db.session import SessionLocal
+    from app.db.session import SessionLocal, reprocess_stored_emails
 
     db = SessionLocal()
     try:
         count = db.query(Email).count()
         if count == 0 and app_state.demo_mode:
             sync_emails(db)
+        else:
+            # Reprocess existing stored emails once on startup (idempotent, §Part A)
+            reprocess_stored_emails(db)
     finally:
         db.close()
 

@@ -60,6 +60,8 @@ class Email(Base):
     body_text: Mapped[str] = mapped_column(Text, default="")
     body_html: Mapped[str] = mapped_column(Text, default="")
     snippet: Mapped[str] = mapped_column(String, default="")
+    # JSON-encoded list[dict[str, str]] — [{text, href}] (§Part A)
+    links: Mapped[str] = mapped_column(Text, default="[]")
     # JSON-encoded list[str]
     labels: Mapped[str] = mapped_column(Text, default="[]")
     # JSON-encoded list[{name, value}] — preserves duplicate headers (§14)
