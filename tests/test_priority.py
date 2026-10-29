@@ -155,6 +155,7 @@ def test_priority_rule_cap_promo_never_high(db_session: Session):
 def test_worker_interrupted_and_resumable(tmp_path, monkeypatch):
     """Worker tracks interrupted state, skips finished emails, and shows resume UI (§Stage 3)."""
     from fastapi.testclient import TestClient
+
     from app.main import app
     from app.priority import worker
     from app.state import app_state

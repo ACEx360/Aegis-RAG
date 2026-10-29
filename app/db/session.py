@@ -38,7 +38,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session]:
     """FastAPI dependency — yields a DB session, closes it afterwards."""
     db = SessionLocal()
     try:
@@ -73,6 +73,16 @@ def init_db() -> None:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN is_rag_indexed BOOLEAN DEFAULT 0")
                 if "fraud_score" not in existing_cols:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_score FLOAT")
+                if "fraud_label" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_label VARCHAR")
+                if "fraud_reason" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_reason TEXT")
+                if "fraud_layers" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_layers TEXT DEFAULT '[]'")
+                if "fraud_evidence" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_evidence TEXT DEFAULT '[]'")
+                if "fraud_version" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_version VARCHAR")
                 conn.commit()
         except Exception:
             pass
@@ -85,6 +95,7 @@ def reprocess_stored_emails(db: Session) -> int:
     """
     import html
     import json
+
     from app.db.models import Email
     from app.ingest.normalizer import derive_body_text_from_html, extract_all_links
 

@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
-from email.utils import parsedate_to_datetime
 import html
-from html.parser import HTMLParser
 import re
-from typing import Any
+from email.utils import parsedate_to_datetime
+from html.parser import HTMLParser
+from typing import Any, ClassVar
 from urllib.parse import parse_qs, unquote, urlparse
 
 from app.ingest.schemas import EmailSchema, HeaderPair
@@ -35,7 +35,7 @@ def _parse_link_info(text: str, href: str) -> dict[str, str]:
                 "url", "q", "u", "target", "dest", "destination",
                 "redirect", "redirect_url", "link"
             ):
-                if param in qs and qs[param]:
+                if qs.get(param):
                     cand = unquote(qs[param][0]).strip()
                     if cand.startswith(("http://", "https://")):
                         final_url = cand
@@ -66,12 +66,12 @@ class SafeHTMLToTextParser(HTMLParser):
     - Extracts anchor links with hostname and decoded redirect destination.
     """
 
-    SKIP_TAGS = {"script", "style", "noscript", "svg", "canvas"}
-    VOID_TAGS = {
+    SKIP_TAGS: ClassVar[set[str]] = {"script", "style", "noscript", "svg", "canvas"}
+    VOID_TAGS: ClassVar[set[str]] = {
         "area", "base", "br", "col", "embed", "hr", "img", "input",
         "link", "meta", "param", "source", "track", "wbr"
     }
-    BLOCK_TAGS = {
+    BLOCK_TAGS: ClassVar[set[str]] = {
         "p", "div", "br", "tr", "li", "h1", "h2", "h3", "h4", "h5", "h6",
         "hr", "blockquote", "table", "section", "article", "header", "footer"
     }
@@ -300,7 +300,7 @@ def _parse_date(date_str: str) -> dt.datetime | None:
         parsed = parsedate_to_datetime(date_str)
         # Ensure timezone-aware
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=dt.timezone.utc)
+            parsed = parsed.replace(tzinfo=dt.UTC)
         return parsed
     except (ValueError, TypeError):
         return None

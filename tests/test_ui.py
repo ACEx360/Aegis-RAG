@@ -135,14 +135,15 @@ def test_panel_post_marks_opened_and_updates_state(client: TestClient, db_sessio
 
 
 def test_placeholder_notices_shown_not_simulated_data(client: TestClient):
-    """Verified Explanation and Detection Layers show explicit placeholder notices, not fake data (§8, §9)."""
+    """Verified Explanation shows placeholder for Stage 5; Detection Layers shows live providers (§8, §9)."""
     app_state.demo_mode = True
     client.post("/api/emails/sync")
 
     resp = client.get("/ui/emails/1/panel")
     assert resp.status_code == 200
     assert "Claim-Level Explanation Verification Coming in Stage 5" in resp.text
-    assert "Multi-Layer Threat Detection Coming in Stage 4" in resp.text
+    assert "Sender Authentication" in resp.text
+    assert "URL & Domain Heuristics" in resp.text
 
 
 def test_headers_tab_shows_all_headers_including_duplicates(client: TestClient, db_session: Session):

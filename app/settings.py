@@ -55,8 +55,22 @@ class Settings(BaseSettings):
     max_body_chars_for_llm: int = 2000
     max_body_chars_for_rag: int = 500
 
-    # --- Thresholds (§7, §8, §9) -----------------------------------------
+    # --- Thresholds & Phishing (§7, §16, Stage 4) -----------------------
+    fraud_version: str = "v1"
     fraud_threshold: float = 0.5
+    fraud_suspicious_threshold: float = 0.3
+    strong_layer_threshold: float = 0.8
+    strong_layer_floor: float = 0.6
+    weak_signal_cap: float = 0.40
+    trust_score_reduction: float = 0.3
+    gemini_social_trigger_threshold: float = 0.25
+
+    # Phishing provider weights (§16)
+    weight_sender_auth: float = 0.35
+    weight_url_heuristics: float = 0.35
+    weight_bert_phishing: float = 0.15
+    weight_gemini_social: float = 0.15
+
     priority_high_threshold: float = 70.0
     priority_low_threshold: float = 30.0
 

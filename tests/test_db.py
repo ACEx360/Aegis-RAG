@@ -37,7 +37,7 @@ def test_email_opened_at_tracking(db_session: Session):
     db_session.add(email)
     db_session.commit()
 
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     email.opened_at = now
     db_session.commit()
     db_session.refresh(email)
@@ -84,6 +84,7 @@ def test_llm_cache_unique_constraint(db_session: Session):
 def test_concurrent_writes_do_not_lock(tmp_path):
     """Two concurrent sessions writing to SQLite with WAL and busy_timeout do not fail (§BUG 1)."""
     import threading
+
     from sqlalchemy import create_engine, event
     from sqlalchemy.orm import sessionmaker
 

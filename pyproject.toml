@@ -32,3 +32,16 @@ torch = { index = "pytorch-cpu" }
 dev = [
     "ruff>=0.17.3",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+ignore = [
+    "B008",   # Do not perform function call `Depends` in argument defaults (FastAPI standard)
+    "BLE001", # Blind Exception catching
+    "SIM102", # Nested if statements
+    "S110",   # try-except-pass
+    "S112",   # try-except-continue
+]

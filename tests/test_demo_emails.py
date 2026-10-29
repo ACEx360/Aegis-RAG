@@ -82,7 +82,7 @@ def test_demo_domains_are_reserved():
 def test_demo_dates_are_recent_and_tzaware():
     """Dates should be timezone-aware and relative to now."""
     demos = get_demo_emails()
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
 
     for item in demos:
         d = item.schema.date

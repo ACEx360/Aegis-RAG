@@ -10,6 +10,7 @@ Requirements:
 from __future__ import annotations
 
 import logging
+
 from sqlalchemy.orm import Session
 
 from app.db.models import Email

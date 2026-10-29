@@ -68,8 +68,8 @@
         <div class="flex items-center gap-2">
           <span class="text-slate-400">Fraud Confidence:</span>
           {% if email.fraud_score is not none %}
-            <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if email.fraud_score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
-              {{ (email.fraud_score * 100)|int }}% {% if email.fraud_score >= 0.5 %}(Likely Threat){% else %}(Low Risk){% endif %}
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if email.fraud_score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% elif email.fraud_score >= 0.3 %}bg-amber-950 text-amber-300 border border-amber-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
+              {{ (email.fraud_score * 100)|int }}% ({{ style.fraud_label }})
             </span>
           {% else %}
             <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">Not analyzed yet</span>
@@ -114,6 +114,34 @@
       </div>
     {% endif %}
 
+    <!-- Fraud & Phishing Justification (§Stage 4) -->
+    {% if email.fraud_reason %}
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="{% if email.fraud_score and email.fraud_score >= 0.5 %}text-rose-400{% elif email.fraud_score and email.fraud_score >= 0.3 %}text-amber-400{% else %}text-emerald-400{% endif %} font-semibold text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full {% if email.fraud_score and email.fraud_score >= 0.5 %}bg-rose-400{% elif email.fraud_score and email.fraud_score >= 0.3 %}bg-amber-400{% else %}bg-emerald-400{% endif %}"></span>
+            Threat & Phishing Analysis
+          </span>
+          <span class="text-[10px] font-mono text-slate-400">Band: {{ style.fraud_label }}</span>
+        </div>
+        <p class="text-slate-200 leading-relaxed font-medium">{{ email.fraud_reason }}</p>
+
+        {% if fraud_evidence and fraud_evidence|length > 0 %}
+          <div class="pt-2 border-t border-slate-800/60 space-y-1">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">System-Verified Evidence Items:</span>
+            <ul class="space-y-1 text-[11px] text-slate-300">
+              {% for fact in fraud_evidence %}
+                <li class="flex items-start gap-1.5 font-mono text-slate-400">
+                  <span class="text-rose-400 flex-none">&bull;</span>
+                  <span>{{ fact }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <!-- Snippet preview -->
     <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs">
       <span class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block mb-1">Snippet</span>
@@ -136,18 +164,112 @@
     </div>
   </div>
 
-  <!-- Inner Tab 3: Detection Layers (Placeholder for Stage 4) -->
-  <div data-inner-content="detection" class="hidden">
-    <div class="p-6 rounded-xl bg-slate-900/50 border border-slate-800/80 text-center space-y-3">
-      <div class="inline-flex p-3 rounded-full bg-rose-950/60 border border-rose-800/60 text-rose-400">
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
+  <!-- Inner Tab 3: Detection Layers (§Stage 4) -->
+  <div data-inner-content="detection" class="hidden space-y-4">
+    <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+      <div>
+        <h4 class="text-xs font-semibold text-slate-200">Ensemble Detection Providers</h4>
+        <p class="text-[11px] text-slate-400">Multi-layer verification via weighted average fusion and heuristic isolation.</p>
       </div>
-      <h4 class="text-sm font-semibold text-slate-200">Multi-Layer Threat Detection Coming in Stage 4</h4>
-      <p class="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-        In Stage 4, this panel will display breakdown scores and diagnostic reasons from all detection providers: Sender Authentication (SPF, DKIM, DMARC), URL heuristics, threat feeds (Safe Browsing & VirusTotal), and LLM social engineering analysis.
-      </p>
+      <div class="text-right">
+        <span class="text-[10px] text-slate-500 block">Fraud Score</span>
+        <span class="text-xs font-mono font-bold {% if email.fraud_score and email.fraud_score >= 0.5 %}text-rose-400{% elif email.fraud_score and email.fraud_score >= 0.3 %}text-amber-400{% else %}text-emerald-400{% endif %}">
+          {{ (email.fraud_score * 100)|int if email.fraud_score is not none else 'N/A' }}%
+        </span>
+      </div>
+    </div>
+
+    <!-- Providers Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      <!-- 1. Sender Authentication -->
+      {% set sa_layer = (fraud_layers|selectattr('name', 'equalto', 'sender_auth')|list)[0] if fraud_layers else None %}
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-slate-200 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full {% if sa_layer and sa_layer.available %}{% if sa_layer.score >= 0.5 %}bg-rose-400{% else %}bg-emerald-400{% endif %}{% else %}bg-slate-600{% endif %}"></span>
+            Sender Authentication
+          </span>
+          {% if sa_layer and sa_layer.available %}
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold {% if sa_layer.score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% elif sa_layer.score >= 0.3 %}bg-amber-950 text-amber-300 border border-amber-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
+              Score: {{ (sa_layer.score * 100)|int }}%
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
+              Not available
+            </span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">{{ sa_layer.reason if sa_layer else 'Authentication header not evaluated yet.' }}</p>
+        {% if sa_layer and sa_layer.evidence %}
+          <div class="pt-1.5 border-t border-slate-800/40">
+            <span class="text-[9px] text-slate-400 uppercase font-semibold block mb-1">Layer Evidence:</span>
+            <ul class="space-y-0.5 text-[10px] font-mono text-slate-400">
+              {% for ev in sa_layer.evidence %}
+                <li>&bull; {{ ev }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- 2. URL Heuristics -->
+      {% set url_layer = (fraud_layers|selectattr('name', 'equalto', 'url_heuristics')|list)[0] if fraud_layers else None %}
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-slate-200 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full {% if url_layer and url_layer.available %}{% if url_layer.score >= 0.5 %}bg-rose-400{% else %}bg-emerald-400{% endif %}{% else %}bg-slate-600{% endif %}"></span>
+            URL & Domain Heuristics
+          </span>
+          {% if url_layer and url_layer.available %}
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold {% if url_layer.score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% elif url_layer.score >= 0.3 %}bg-amber-950 text-amber-300 border border-amber-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
+              Score: {{ (url_layer.score * 100)|int }}%
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
+              {{ 'No links in body' if url_layer and not url_layer.available else 'Not available' }}
+            </span>
+          {% endif %}
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">{{ url_layer.reason if url_layer else 'URLs not evaluated yet.' }}</p>
+        {% if url_layer and url_layer.evidence %}
+          <div class="pt-1.5 border-t border-slate-800/40">
+            <span class="text-[9px] text-slate-400 uppercase font-semibold block mb-1">Layer Evidence:</span>
+            <ul class="space-y-0.5 text-[10px] font-mono text-slate-400">
+              {% for ev in url_layer.evidence %}
+                <li>&bull; {{ ev }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- 3. BERT Phishing Classifier (Stage 4b) -->
+      <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-2 opacity-80">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-slate-300 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+            BERT Classifier (Fine-tuned)
+          </span>
+          <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
+            Pass 4b
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">Local transformer model (<span class="font-mono text-slate-300">ealvaradob/bert-finetuned-phishing</span>). Operational in Pass 4b.</p>
+      </div>
+
+      <!-- 4. Gemini Social Engineering Check (Stage 4b) -->
+      <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-2 opacity-80">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-slate-300 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+            Gemini Social Engineering
+          </span>
+          <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
+            Pass 4b
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">LLM structured urgency, authority impersonation, and payment harvesting analysis. Operational in Pass 4b.</p>
+      </div>
     </div>
   </div>
 

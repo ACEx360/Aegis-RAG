@@ -20,6 +20,7 @@ import time
 
 from app.db.models import Email
 from app.db.session import SessionLocal
+from app.phishing.detector import detect_phishing_for_email
 from app.priority.classifier import classify_email_priority
 from app.rag.history import index_history_emails
 from app.settings import PROJECT_ROOT, settings
@@ -37,7 +38,7 @@ def _save_status(status_val: str) -> None:
     try:
         data = {
             "status": status_val,
-            "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "updated_at": dt.datetime.now(dt.UTC).isoformat(),
         }
         _STATUS_FILE.write_text(json.dumps(data), encoding="utf-8")
     except Exception as exc:
@@ -65,8 +66,8 @@ def is_analysis_running() -> bool:
     return app_state.analysis_running
 
 
-def start_priority_analysis(is_demo: bool | None = None) -> bool:
-    """Trigger the background priority worker if not already running.
+def start_priority_analysis(is_demo: bool | None = None, force_phishing: bool = False) -> bool:
+    """Trigger the background priority and phishing worker if not already running.
 
     Returns True if started, False if already in progress.
     """
@@ -81,19 +82,19 @@ def start_priority_analysis(is_demo: bool | None = None) -> bool:
         app_state.analysis_interrupted = False
         app_state.analysis_current = 0
         app_state.analysis_total = 0
-        app_state.analysis_message = "Initializing priority analysis..."
+        app_state.analysis_message = "Initializing analysis pipeline..."
         _save_status("running")
 
         _worker_thread = threading.Thread(
             target=_run_analysis_worker,
-            args=(mode_demo,),
+            args=(mode_demo, force_phishing),
             daemon=True,
         )
         _worker_thread.start()
         return True
 
 
-def _run_analysis_worker(is_demo: bool) -> None:
+def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
     """Worker loop running in a dedicated thread with its own SessionLocal."""
     db = SessionLocal()
     try:
@@ -104,7 +105,7 @@ def _run_analysis_worker(is_demo: bool) -> None:
             logger.debug("History embedding indexing had notice: %s", exc)
 
         # Calculate sync window boundary
-        cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=settings.sync_days)
+        cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(days=settings.sync_days)
 
         # Query unread emails inside the sync window, newest first
         # An email is unread if (is_read == False or 'UNREAD' in labels) AND opened_at is None
@@ -119,8 +120,15 @@ def _run_analysis_worker(is_demo: bool) -> None:
             .all()
         )
 
-        # Filter for unscored (resumable: skips already-scored emails)
-        unscored = [e for e in candidates if e.priority_score is None]
+        # Filter for items needing priority or phishing scoring (§Change 7: skips already scored at current version)
+        unscored = [
+            e
+            for e in candidates
+            if e.priority_score is None
+            or e.fraud_score is None
+            or e.fraud_version != settings.fraud_version
+            or force_phishing
+        ]
         total_items = len(unscored)
 
         app_state.analysis_total = total_items
@@ -140,7 +148,18 @@ def _run_analysis_worker(is_demo: bool) -> None:
             app_state.analysis_message = f"Analyzing {i + 1}/{total_items}"
 
             try:
-                classify_email_priority(email, db=db, force_refresh=False)
+                # 1. Priority scoring if unrated
+                if email.priority_score is None:
+                    classify_email_priority(email, db=db, force_refresh=False)
+
+                # 2. Phishing scoring (§Pass 4a)
+                if (
+                    email.fraud_score is None
+                    or email.fraud_version != settings.fraud_version
+                    or force_phishing
+                ):
+                    detect_phishing_for_email(email, db=db, force_refresh=force_phishing)
+
                 processed += 1
             except Exception as exc:
                 logger.warning("Error evaluating email %s: %s", email.gmail_id, exc)
@@ -157,7 +176,7 @@ def _run_analysis_worker(is_demo: bool) -> None:
         app_state.analysis_interrupted = False
 
     except Exception as exc:
-        logger.error("Background priority worker failed: %s", exc)
+        logger.error("Background priority/phishing worker failed: %s", exc)
         app_state.analysis_interrupted = True
         app_state.analysis_message = "Analysis interrupted - click to resume"
         _save_status("interrupted")

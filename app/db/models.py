@@ -15,7 +15,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 def _utcnow() -> dt.datetime:
     """Timezone-aware UTC timestamp for default column values."""
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 class UTCDateTime(TypeDecorator):
@@ -28,15 +28,15 @@ class UTCDateTime(TypeDecorator):
         if value is not None:
             if isinstance(value, dt.datetime):
                 if value.tzinfo is None:
-                    value = value.replace(tzinfo=dt.timezone.utc)
+                    value = value.replace(tzinfo=dt.UTC)
                 else:
-                    value = value.astimezone(dt.timezone.utc)
+                    value = value.astimezone(dt.UTC)
         return value
 
     def process_result_value(self, value: Any, dialect: Any) -> Any:
         if value is not None and isinstance(value, dt.datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=dt.timezone.utc)
+                return value.replace(tzinfo=dt.UTC)
         return value
 
 
@@ -84,8 +84,13 @@ class Email(Base):
     embedding: Mapped[str | None] = mapped_column(Text, default=None)  # JSON-encoded float vector
     is_rag_indexed: Mapped[bool] = mapped_column(default=False)
 
-    # Stage 4 Fraud field (§7)
+    # Stage 4 Fraud fields (§7, §16)
     fraud_score: Mapped[float | None] = mapped_column(Float, default=None)
+    fraud_label: Mapped[str | None] = mapped_column(String, default=None)
+    fraud_reason: Mapped[str | None] = mapped_column(Text, default=None)
+    fraud_layers: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[dict] of layer results
+    fraud_evidence: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[str] of numbered facts
+    fraud_version: Mapped[str | None] = mapped_column(String, default=None)
 
 
 class LLMCache(Base):

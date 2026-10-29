@@ -39,6 +39,9 @@ class EmailListResponse(BaseModel):
     priority_score: float | None = None
     priority_label: str | None = None
     fraud_score: float | None = None
+    fraud_label: str | None = None
+    fraud_reason: str | None = None
+    fraud_version: str | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -55,6 +58,8 @@ class EmailDetailResponse(EmailListResponse):
     links: list[dict[str, str]] = Field(default_factory=list)
     raw_headers: list[HeaderPair] = Field(default_factory=list)
     attachment_meta: list[dict[str, Any]] = Field(default_factory=list)
+    fraud_evidence: list[str] = Field(default_factory=list)
+    fraud_layers: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class OpenEmailResponse(BaseModel):

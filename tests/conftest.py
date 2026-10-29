@@ -30,7 +30,7 @@ TestingSessionLocal = sessionmaker(bind=test_engine, expire_on_commit=False)
 
 
 @pytest.fixture(autouse=True)
-def init_test_db() -> Generator[None, None, None]:
+def init_test_db() -> Generator[None]:
     """Create all tables before each test and drop them afterwards."""
     Base.metadata.create_all(bind=test_engine)
     yield
@@ -38,7 +38,7 @@ def init_test_db() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def db_session() -> Generator[Session, None, None]:
+def db_session() -> Generator[Session]:
     """Provide a direct handle to the in-memory DB session."""
     session = TestingSessionLocal()
     try:
@@ -48,10 +48,10 @@ def db_session() -> Generator[Session, None, None]:
 
 
 @pytest.fixture
-def client(db_session: Session) -> Generator[TestClient, None, None]:
+def client(db_session: Session) -> Generator[TestClient]:
     """FastAPI TestClient with overridden get_db dependency."""
 
-    def _override_get_db() -> Generator[Session, None, None]:
+    def _override_get_db() -> Generator[Session]:
         yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db

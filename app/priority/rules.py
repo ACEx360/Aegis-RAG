@@ -93,9 +93,7 @@ def evaluate_priority_rules(
     for h in raw_headers:
         name = h.get("name", "").lower()
         val = h.get("value", "").lower()
-        if name == "list-unsubscribe":
-            is_bulk = True
-        elif name == "precedence" and val in ("bulk", "list", "junk"):
+        if name == "list-unsubscribe" or name == "precedence" and val in ("bulk", "list", "junk"):
             is_bulk = True
 
     if is_bulk:
@@ -109,7 +107,7 @@ def evaluate_priority_rules(
 
     urgent_matches = URGENCY_PATTERN.findall(combined_search_text)
     if urgent_matches:
-        unique_matches = sorted(list({m.lower() for m in urgent_matches}))[:3]
+        unique_matches = sorted({m.lower() for m in urgent_matches})[:3]
         rule_score += 20.0
         rule_facts.append(
             f"Subject or body contains time-sensitive urgency keywords: {', '.join(unique_matches)}."
@@ -118,7 +116,7 @@ def evaluate_priority_rules(
     # 5. Work / collaboration terms
     collab_matches = COLLAB_PATTERN.findall(subject_text)
     if collab_matches:
-        unique_collab = sorted(list({m.lower() for m in collab_matches}))[:2]
+        unique_collab = sorted({m.lower() for m in collab_matches})[:2]
         rule_score += 10.0
         rule_facts.append(
             f"Subject contains collaboration / project keywords: {', '.join(unique_collab)}."

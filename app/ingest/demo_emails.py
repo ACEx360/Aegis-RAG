@@ -26,7 +26,7 @@ class DemoEmail:
 
 
 def _now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def _ago(**kwargs: float) -> dt.datetime:
@@ -250,9 +250,19 @@ def get_demo_emails() -> list[DemoEmail]:
                     TO,
                     "Security Alert: Please verify your identity",
                     _ago(hours=4),
-                    auth_result=_auth_results(
-                        "legit-bank.example.com", spf="pass", dkim="pass", dmarc="pass"
+                    auth_result=HeaderPair(
+                        name="Authentication-Results",
+                        value=(
+                            "mx.google.com; "
+                            "spf=pass (google.com: domain of bounce@attacker-relay.example.org) smtp.mailfrom=bounce@attacker-relay.example.org; "
+                            "dkim=fail header.d=legit-bank.example.com; "
+                            "dmarc=fail (p=REJECT sp=REJECT dis=NONE) header.from=legit-bank.example.com"
+                        ),
                     ),
+                    extra=[
+                        HeaderPair(name="Return-Path", value="<bounce@attacker-relay.example.org>"),
+                        HeaderPair(name="Reply-To", value="Security Team <security-verify@attacker-relay.example.org>"),
+                    ],
                 ),
                 is_read=False,
             ),

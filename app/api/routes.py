@@ -24,11 +24,12 @@ from app.db.session import get_db
 from app.ingest.demo_emails import get_demo_emails
 from app.ingest.gmail_client import gmail_client, is_oauth_in_progress
 from app.ingest.normalizer import extract_all_links, normalize_message
-from app.settings import settings
-from app.state import app_state
+from app.phishing.detector import detect_phishing_for_email
 from app.priority.rules import evaluate_priority_rules
 from app.priority.worker import start_priority_analysis
 from app.rag.history import DEMO_SENT_CONTACTS, index_history_emails
+from app.settings import settings
+from app.state import app_state
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,11 @@ def _row_to_dict(row: Email) -> dict[str, Any]:
         "priority_score": row.priority_score,
         "priority_label": row.priority_label,
         "fraud_score": row.fraud_score,
+        "fraud_label": row.fraud_label,
+        "fraud_reason": row.fraud_reason,
+        "fraud_version": row.fraud_version,
+        "fraud_evidence": json.loads(row.fraud_evidence or "[]"),
+        "fraud_layers": json.loads(row.fraud_layers or "[]"),
     }
 
 
@@ -116,7 +122,7 @@ def mark_email_as_opened_in_db(email_id: int, db: Session) -> Email | None:
         return None
 
     if row.opened_at is None:
-        row.opened_at = dt.datetime.now(dt.timezone.utc)
+        row.opened_at = dt.datetime.now(dt.UTC)
         db.commit()
         db.refresh(row)
     return row
@@ -137,7 +143,7 @@ def mark_email_opened(email_id: int, db: Session = Depends(get_db)) -> OpenEmail
     return OpenEmailResponse(
         id=row.id,
         gmail_id=row.gmail_id,
-        opened_at=row.opened_at or dt.datetime.now(dt.timezone.utc),
+        opened_at=row.opened_at or dt.datetime.now(dt.UTC),
         message="Email marked as opened.",
     )
 
@@ -189,6 +195,8 @@ def _sync_demo(db: Session) -> SyncResponse:
                 existing.priority_label = "High" if rule_res["rule_score"] >= settings.priority_high_threshold else ("Low" if rule_res["rule_score"] <= settings.priority_low_threshold else "Medium")
                 existing.priority_reason = "Evaluated via baseline priority rules."
                 existing.priority_evidence = json.dumps([f"[{i+1}] {f}" for i, f in enumerate(rule_res["rule_facts"])])
+            if existing.fraud_score is None or existing.fraud_version != settings.fraud_version:
+                detect_phishing_for_email(existing, db=db, force_refresh=True)
             updated += 1
         else:
             raw_headers_dicts = [h.model_dump() for h in schema.raw_headers]
@@ -210,13 +218,15 @@ def _sync_demo(db: Session) -> SyncResponse:
                 is_read=schema.is_read,
                 is_demo=True,
                 opened_at=item.opened_at,
-                fraud_score=0.9 if "phish" in schema.gmail_id else 0.02,
             )
             rule_res = evaluate_priority_rules(new_email, DEMO_SENT_CONTACTS)
             new_email.priority_score = rule_res["rule_score"]
             new_email.priority_label = "High" if rule_res["rule_score"] >= settings.priority_high_threshold else ("Low" if rule_res["rule_score"] <= settings.priority_low_threshold else "Medium")
             new_email.priority_reason = "Evaluated via baseline priority rules."
             new_email.priority_evidence = json.dumps([f"[{i+1}] {f}" for i, f in enumerate(rule_res["rule_facts"])])
+            
+            # Real phishing evaluation (§Pass 4a)
+            detect_phishing_for_email(new_email)
             db.add(new_email)
             added += 1
 
@@ -392,6 +402,29 @@ def start_oauth_login() -> dict[str, Any]:
         "status": "started",
         "message": "OAuth flow started in background. Complete login in your browser.",
     }
+
+
+@router.post(
+    "/emails/re-detect",
+    tags=["Phishing"],
+    summary="Re-run phishing detection",
+    description="Re-runs phishing detection across emails using current fraud_version (§Change 7).",
+)
+def re_run_phishing_detection(
+    force: bool = Query(True, description="Force re-scoring even if already scored at current version"),
+    mode: str | None = Query(None, description="'demo' or 'real'"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    target_mode = mode if mode in ("demo", "real") else app_state.mode
+    is_demo = target_mode == "demo"
+    emails = db.query(Email).filter(Email.is_demo == is_demo).all()
+    count = 0
+    for em in emails:
+        if force or em.fraud_score is None or em.fraud_version != settings.fraud_version:
+            detect_phishing_for_email(em, db=db, force_refresh=force)
+            count += 1
+    db.commit()
+    return {"status": "ok", "message": f"Phishing detection re-run for {count} emails.", "count": count}
 
 
 @router.post(

@@ -62,10 +62,25 @@ def get_email_styling(email: Any) -> dict[str, Any]:
     newsletter = is_newsletter_email(raw_h, lbls)
 
     fraud_score = getattr(email, "fraud_score", None)
+    fraud_label = getattr(email, "fraud_label", None)
     priority_score = getattr(email, "priority_score", None)
     priority_label = getattr(email, "priority_label", None)
 
     is_fraud = fraud_score is not None and fraud_score >= settings.fraud_threshold
+    is_suspicious = (
+        fraud_score is not None
+        and settings.fraud_suspicious_threshold <= fraud_score < settings.fraud_threshold
+    )
+    if not fraud_label:
+        if fraud_score is not None:
+            if fraud_score >= settings.fraud_threshold:
+                fraud_label = f"Likely phishing - {int(fraud_score * 100)}% confidence"
+            elif fraud_score >= settings.fraud_suspicious_threshold:
+                fraud_label = "Suspicious"
+            else:
+                fraud_label = "Low risk"
+        else:
+            fraud_label = "Not analyzed yet"
     is_high_priority = (
         priority_label == "High"
         or (priority_score is not None and priority_score >= settings.priority_high_threshold)
@@ -92,10 +107,12 @@ def get_email_styling(email: Any) -> dict[str, Any]:
     return {
         "is_newsletter": newsletter,
         "is_fraud": is_fraud,
+        "is_suspicious": is_suspicious,
         "is_high_priority": is_high_priority,
         "border_class": border_class,
         "tag_color": tag_color,
         "fraud_pct": int(fraud_score * 100) if fraud_score is not None else None,
+        "fraud_label": fraud_label,
         "priority_score": int(priority_score) if priority_score is not None else None,
         "priority_label": priority_label,
         "is_unanalyzed": priority_score is None and fraud_score is None,

@@ -77,6 +77,37 @@ A local, self-hosted agentic email assistant for Gmail that prioritizes emails, 
 
 ---
 
+## Stage 4 — Multi-Layer Phishing Detection (Pass 4a Complete)
+- **Layer 1: Sender Authentication (`app/phishing/providers/sender_auth.py`)**:
+  - Trusts strictly the topmost `Authentication-Results` header with `authserv-id: mx.google.com`. Ignores forged/extra headers and records an evidence line.
+  - Parses SPF, DKIM, DMARC outcomes (`pass`, `fail`, `softfail`, `neutral`, `none`).
+  - Detects `From` vs `Return-Path` / `smtp.mailfrom` domain mismatches (catches attacker relay spoofing even when SPF passes).
+  - Detects `From` vs `Reply-To` domain discrepancies (flags BEC and reply rerouting).
+  - Flags display name anomalies (embedded foreign emails or brand name spoofing).
+  - Abstains (`available=False`) when trusted auth headers are absent.
+- **Layer 2: URL & Domain Heuristics (`app/phishing/providers/url_heuristics.py`)**:
+  - Scans all extracted HTML links and plain body URLs.
+  - Flags IP-address hosts, lookalike/typosquatting domains (`paypa1`, `micros0ft`), deceptive subdomains embedding foreign TLDs (`naukri.com.evil.net`), punycode, URL shorteners, and insecure HTTP on auth paths.
+  - Flags anchor text vs real `href` host mismatches (e.g. text says `paypal.com` but points to `paypa1.example.com`).
+  - Flags open redirect / forwarding parameters pointing to external domains (e.g. `google.com/url?q=evil.com`).
+  - Includes an allowlist for known ESP/tracking services (`naukri.com`, `sendgrid.net`, `mailchimp.com`, etc.) that exempts subdomain penalties via registered-domain suffix checks, while never exempting anchor mismatches or external redirects.
+  - Abstains (`available=False`) with a clean explanation when an email contains no links.
+- **Risk Fusion Engine (`app/phishing/fusion.py`)**:
+  - Weighted average with automatic re-normalization across operational layers only.
+  - Strong layer floor: if any available layer scores $\ge 0.80$, final confidence is floored at $\ge 0.60$.
+  - Sent-contacts trust discount ($-30\%$): applied only when the sender's email address is in the user's sent contacts, SPF/DKIM both pass, and there are NO Reply-To or anchor-text mismatches. Never applied on display name alone.
+  - Confidence bands: `"Likely phishing - N% confidence"` ($\ge 50\%$), `"Suspicious"` ($30\%\text{--}49\%$), and `"Low risk"` ($< 30\%$). Unscored emails remain `"Not analyzed yet"`.
+  - Numbered, system-verified factual evidence items (`[1] SPF check result: ...`, `[2] ...`).
+- **Resumable Worker & "Re-run detection" Action**:
+  - Tracks `fraud_version` column in SQLite; worker skips emails already scored at the current version.
+  - Provides `POST /api/emails/re-detect` and Settings tab action to trigger immediate re-analysis.
+- **Swagger-Style UI Detection Layers View**:
+  - Expanded email panel features live breakdown cards for each provider with scores, reasons, and per-layer evidence items.
+  - Callout badges reflect confidence bands.
+  - Flagged tab dynamically sorts confirmed threats by fraud confidence.
+
+---
+
 ## Quickstart
 
 ### Option A: Using `uv` (Recommended)

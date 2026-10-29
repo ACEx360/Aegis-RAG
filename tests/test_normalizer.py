@@ -235,6 +235,7 @@ def test_normalizer_extracts_bare_urls_from_plain_text():
 def test_reprocess_stored_emails_is_idempotent(db_session):
     """reprocess_stored_emails updates existing stored emails and is strictly idempotent."""
     import json
+
     from app.db.models import Email
     from app.db.session import reprocess_stored_emails
 

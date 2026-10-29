@@ -279,6 +279,8 @@ def get_email_panel_readonly(
     recipients = parse_json_safely(email_row.recipients)
     links = parse_json_safely(email_row.links)
     priority_evidence = parse_json_safely(email_row.priority_evidence)
+    fraud_evidence = parse_json_safely(email_row.fraud_evidence)
+    fraud_layers = parse_json_safely(email_row.fraud_layers)
 
     context = {
         "request": request,
@@ -287,6 +289,8 @@ def get_email_panel_readonly(
         "recipients": recipients,
         "links": links,
         "priority_evidence": priority_evidence,
+        "fraud_evidence": fraud_evidence,
+        "fraud_layers": fraud_layers,
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
@@ -310,6 +314,8 @@ def open_and_get_email_panel(
     recipients = parse_json_safely(email_row.recipients)
     links = parse_json_safely(email_row.links)
     priority_evidence = parse_json_safely(email_row.priority_evidence)
+    fraud_evidence = parse_json_safely(email_row.fraud_evidence)
+    fraud_layers = parse_json_safely(email_row.fraud_layers)
 
     context = {
         "request": request,
@@ -318,6 +324,8 @@ def open_and_get_email_panel(
         "recipients": recipients,
         "links": links,
         "priority_evidence": priority_evidence,
+        "fraud_evidence": fraud_evidence,
+        "fraud_layers": fraud_layers,
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
