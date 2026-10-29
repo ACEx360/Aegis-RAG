@@ -76,9 +76,15 @@ class Email(Base):
     opened_at: Mapped[dt.datetime | None] = mapped_column(UTCDateTime, default=None)
     ingested_at: Mapped[dt.datetime] = mapped_column(UTCDateTime, default=_utcnow)
 
-    # Stage 2 Placeholders / Computed in Stages 3 & 4 (§6, §7)
+    # Stage 3 Priority & RAG fields (§6, §Stage 3)
     priority_score: Mapped[float | None] = mapped_column(Float, default=None)
     priority_label: Mapped[str | None] = mapped_column(String, default=None)
+    priority_reason: Mapped[str | None] = mapped_column(Text, default=None)
+    priority_evidence: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[str] of numbered facts
+    embedding: Mapped[str | None] = mapped_column(Text, default=None)  # JSON-encoded float vector
+    is_rag_indexed: Mapped[bool] = mapped_column(default=False)
+
+    # Stage 4 Fraud field (§7)
     fraud_score: Mapped[float | None] = mapped_column(Float, default=None)
 
 

@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import Email, LLMCache
+from app.db.models import Base, Email, LLMCache
 
 
 def test_email_creation_and_defaults(db_session: Session):
@@ -79,3 +79,59 @@ def test_llm_cache_unique_constraint(db_session: Session):
     db_session.add(entry3)
     db_session.commit()
     assert entry3.id is not None
+
+
+def test_concurrent_writes_do_not_lock(tmp_path):
+    """Two concurrent sessions writing to SQLite with WAL and busy_timeout do not fail (§BUG 1)."""
+    import threading
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import sessionmaker
+
+    db_file = tmp_path / "test_concurrency.db"
+    file_engine = create_engine(
+        f"sqlite:///{db_file}",
+        connect_args={"check_same_thread": False, "timeout": 30.0},
+    )
+
+    @event.listens_for(file_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
+
+    Base.metadata.create_all(bind=file_engine)
+    FileSession = sessionmaker(bind=file_engine, expire_on_commit=False)
+
+    errors = []
+
+    def writer(thread_id: int):
+        session = FileSession()
+        try:
+            for i in range(10):
+                email = Email(
+                    gmail_id=f"thread_{thread_id}_msg_{i}",
+                    subject=f"Subject from thread {thread_id} item {i}",
+                )
+                session.add(email)
+                session.commit()
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            session.close()
+
+    t1 = threading.Thread(target=writer, args=(1,))
+    t2 = threading.Thread(target=writer, args=(2,))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert not errors, f"Concurrent writes failed with errors: {errors}"
+
+    check_session = FileSession()
+    count = check_session.query(Email).count()
+    check_session.close()
+    assert count == 20
+

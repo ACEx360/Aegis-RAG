@@ -10,7 +10,7 @@ This is a B.Tech major project. Code must be readable and explainable, and must 
 
 ## 2. Hard constraints
 - Python 3.11+, FastAPI. **No Docker.**
-- Setup must be exactly: create venv -> `pip install -r requirements.txt` -> copy `.env.example` to `.env` -> `uvicorn app.main:app --reload`. Write this in README.md and keep it true.
+- Setup must be exactly: create venv -> `pip install -r requirements.txt` -> copy `.env.example` to `.env` -> `uv run uvicorn app.main:app --reload --reload-dir app`. Write this in README.md and keep it true.
 - SQLite only. FAISS or Chroma (local) for vectors.
 - **No Node/npm.** Frontend is Jinja2 templates + HTMX + Tailwind via CDN.
 - Every external service is an **optional provider**. If its key is missing, skip it gracefully and show "not configured" in the UI. The app must run with zero keys in **Demo mode** (about 20 built-in sample emails: some phishing, some newsletters, some normal).
@@ -137,7 +137,7 @@ tests/
 - Tooling: this project uses uv. Manage dependencies with `uv add` and
   keep requirements.txt in sync (`uv export --no-hashes -o requirements.txt`).
   README setup: `uv sync`, copy .env.example to .env,
-  `uv run uvicorn app.main:app --reload`, plus a plain pip fallback.
+  `uv run uvicorn app.main:app --reload --reload-dir app`, plus a plain pip fallback.
   Delete the default main.py that `uv init` created.
 - GET endpoints never change data. Marking an email as opened is
   POST /api/emails/{id}/open (sets opened_at).
@@ -166,3 +166,21 @@ tests/
 - Email HTML is never rendered; plain text only (`body_text`), using a sandboxed iframe if HTML is ever previewed.
 - `uv` is the standard project tooling.
 - Stage 3 decisions: `torch` + `sentence-transformers` approved for embeddings; use NumPy cosine similarity over stored embeddings (no FAISS); system constructs numbered evidence items and Gemini cites them; prompt injection safeguards with delimited email data and rule caps.
+
+## 16. Reuse and simplification decisions (Stages 4-5)
+- Fusion is simple: weighted average with weights and threshold in
+  settings.py; a known-bad link (threat intel) floors the score at 90%;
+  unavailable providers are dropped and weights re-normalized. No
+  trained fusion model. Tune weights/threshold on the 80% split only.
+- Priority and fraud are NOT fused: they stay separate.
+- Stage 4 layers (first pass): sender auth (Authentication-Results),
+  URL heuristics, ealvaradob/bert-finetuned-phishing (verify it loads,
+  tell me the download size first), Gemini social-engineering check.
+  Safe Browsing / URLhaus optional later. Skip VirusTotal.
+- Stage 5: MiniCheck only (RoBERTa-Large or DeBERTa-v3-Large), two
+  labels: supported / unsupported. Claim decomposition via Gemini.
+  Evaluate on our trap cases; external benchmarks optional.
+- Phase 1 uses ealvaradob/phishing-dataset, capped at about 1,000-2,000
+  emails.
+- Never invent model or package names; verify first and tell me install
+  sizes before downloading.

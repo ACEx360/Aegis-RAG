@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import Base
@@ -16,9 +16,24 @@ from app.settings import settings
 
 engine = create_engine(
     settings.db_url,
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False, "timeout": 30.0},
     echo=False,
 )
+
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable WAL mode, 30s busy timeout, and NORMAL synchronous on SQLite connections."""
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+    except Exception:
+        pass
+    finally:
+        cursor.close()
+
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
@@ -48,6 +63,14 @@ def init_db() -> None:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN priority_score FLOAT")
                 if "priority_label" not in existing_cols:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN priority_label VARCHAR")
+                if "priority_reason" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN priority_reason TEXT")
+                if "priority_evidence" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN priority_evidence TEXT DEFAULT '[]'")
+                if "embedding" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN embedding TEXT")
+                if "is_rag_indexed" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN is_rag_indexed BOOLEAN DEFAULT 0")
                 if "fraud_score" not in existing_cols:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_score FLOAT")
                 conn.commit()
@@ -85,8 +108,13 @@ def reprocess_stored_emails(db: Session) -> int:
                 changed = True
 
         # 2. Derive body_text if empty and body_html exists
-        if (not email.body_text or not email.body_text.strip()) and email.body_html:
-            derived_text = derive_body_text_from_html(email.body_html)
+        if not email.body_text or not email.body_text.strip():
+            derived_text = ""
+            if email.body_html:
+                derived_text = derive_body_text_from_html(email.body_html)
+            if not derived_text or not derived_text.strip():
+                # Fallback to snippet (§BUG 2)
+                derived_text = email.snippet or ""
             if derived_text and derived_text != email.body_text:
                 email.body_text = derived_text
                 changed = True

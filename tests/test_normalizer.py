@@ -266,3 +266,91 @@ def test_reprocess_stored_emails_is_idempotent(db_session):
     updated_2 = reprocess_stored_emails(db_session)
     assert updated_2 == 0
 
+
+def test_normalizer_void_meta_tags_regression():
+    """Trimmed copy of Naukri Campus structure with void tags and redirects (§BUG 2)."""
+    html_content = (
+        "<!DOCTYPE html>"
+        "<html><head>"
+        '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        '<link rel="stylesheet" href="https://static.example.com/styles.css">'
+        "<style>body { font-family: sans-serif; }</style>"
+        "</head>"
+        "<body>"
+        '<img src="https://example.com/banner.jpg" alt="Campus Updates">'
+        "<br><br>"
+        "<div>"
+        "<h3>Engineering Jobs & Hiring Updates</h3>"
+        "<p>Get faster alerts and contest reminders.</p>"
+        '<a href="https://track.example.com/click?url=https%3A%2F%2Fcampus.example.com%2Fjobs">'
+        "Explore Openings"
+        "</a>"
+        "</div>"
+        "</body></html>"
+    )
+    raw = {
+        "id": "msg_naukri_regression",
+        "snippet": "Engineering Jobs & Hiring Updates...",
+        "payload": {
+            "mimeType": "text/html",
+            "headers": [{"name": "Subject", "value": "Jobs Update"}],
+            "body": {"data": _b64_url(html_content)},
+        },
+    }
+
+    schema = normalize_message(raw)
+
+    assert len(schema.body_text) > 0
+    assert "Engineering Jobs & Hiring Updates" in schema.body_text
+    assert "Explore Openings" in schema.body_text
+    assert len(schema.links) >= 1
+
+    link = schema.links[0]
+    assert link["text"] == "Explore Openings"
+    assert link["hostname"] == "track.example.com"
+    assert link["final_url"] == "https://campus.example.com/jobs"
+
+
+def test_normalizer_fallback_image_alt_and_snippet():
+    """Fallback if body_text is still empty: use image alt text, then snippet (§BUG 2)."""
+    # 1. Image alt fallback
+    raw_img = {
+        "id": "msg_img_only",
+        "snippet": "Fallback snippet",
+        "payload": {
+            "mimeType": "text/html",
+            "headers": [{"name": "Subject", "value": "Flyer"}],
+            "body": {"data": _b64_url('<html><body><img src="pic.jpg" alt="Conference Schedule Flyer"></body></html>')},
+        },
+    }
+    schema_img = normalize_message(raw_img)
+    assert schema_img.body_text == "Conference Schedule Flyer"
+
+    # 2. Snippet fallback when body has zero text and zero image alts
+    raw_empty = {
+        "id": "msg_empty_html",
+        "snippet": "Important update about your account",
+        "payload": {
+            "mimeType": "text/html",
+            "headers": [{"name": "Subject", "value": "Notice"}],
+            "body": {"data": _b64_url("<html><body><div></div></body></html>")},
+        },
+    }
+    schema_empty = normalize_message(raw_empty)
+    assert schema_empty.body_text == "Important update about your account"
+
+    # 3. Image link with no text gets "(image link)"
+    raw_image_link = {
+        "id": "msg_img_link",
+        "snippet": "test",
+        "payload": {
+            "mimeType": "text/html",
+            "headers": [{"name": "Subject", "value": "Test"}],
+            "body": {"data": _b64_url('<a href="https://example.com/banner"><img src="b.png"></a>')},
+        },
+    }
+    schema_image_link = normalize_message(raw_image_link)
+    assert schema_image_link.links[0]["text"] == "(image link)"
+
+

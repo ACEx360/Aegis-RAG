@@ -16,7 +16,11 @@ token.json
 
 # Database (§3)
 *.db
+*.db-wal
+*.db-shm
 *.sqlite3
 
 # Data directory (§3)
 data/
+.analysis_status.json
+.ruff_cache/

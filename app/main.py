@@ -11,15 +11,14 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
 
 from app.api.routes import router as api_router
 from app.api.routes import sync_emails
 from app.db.models import Email
-from app.db.session import get_db, init_db
+from app.db.session import init_db
 from app.ingest.gmail_client import gmail_client, is_oauth_in_progress
 from app.settings import settings
 from app.state import app_state
@@ -33,6 +32,10 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 async def lifespan(app: FastAPI):
     """Lifecycle hook: initialize tables and auto-seed demo data if empty."""
     init_db()
+
+    # Restore interrupted analysis state if previous run terminated unexpectedly
+    from app.priority.worker import check_and_restore_analysis_state
+    check_and_restore_analysis_state()
 
     # Seed demo emails automatically if DB has no demo emails yet
     from app.db.session import SessionLocal, reprocess_stored_emails

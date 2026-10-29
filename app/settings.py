@@ -33,7 +33,8 @@ class Settings(BaseSettings):
     safe_browsing_api_key: str = ""
     virustotal_api_key: str = ""
 
-    # --- Models (Stage 4+) ----------------------------------------------
+    # --- Models (Stage 3 & Stage 4+) -----------------------------------
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     nli_model: str = "cross-encoder/nli-MiniLM2-L6-H768"
     hf_phishing_model: str = ""
 
@@ -45,6 +46,14 @@ class Settings(BaseSettings):
     sync_days: int = 14
     sync_max: int = 100
     sent_days: int = 90
+    rag_history_max: int = 200
+
+    # --- Priority & RAG Parameters (§Stage 3) ---------------------------
+    priority_rule_weight: float = 0.4
+    priority_gemini_weight: float = 0.6
+    priority_skip_gemini_promo: bool = True
+    max_body_chars_for_llm: int = 2000
+    max_body_chars_for_rag: int = 500
 
     # --- Thresholds (§7, §8, §9) -----------------------------------------
     fraud_threshold: float = 0.5

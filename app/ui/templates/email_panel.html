@@ -86,6 +86,34 @@
       </div>
     </div>
 
+    <!-- Priority Justification & System-Verified Evidence (§Stage 3) -->
+    {% if email.priority_reason %}
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-amber-400 font-semibold text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            Priority Justification (AI Triage)
+          </span>
+          <span class="text-[10px] font-mono text-slate-400">Score: {{ email.priority_score|int }}/100 ({{ email.priority_label }})</span>
+        </div>
+        <p class="text-slate-200 leading-relaxed font-medium">{{ email.priority_reason }}</p>
+
+        {% if priority_evidence and priority_evidence|length > 0 %}
+          <div class="pt-2 border-t border-slate-800/60 space-y-1">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">System-Verified Evidence Items:</span>
+            <ul class="space-y-1 text-[11px] text-slate-300">
+              {% for fact in priority_evidence %}
+                <li class="flex items-start gap-1.5 font-mono text-slate-400">
+                  <span class="text-indigo-400 flex-none">&bull;</span>
+                  <span>{{ fact }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <!-- Snippet preview -->
     <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 text-xs">
       <span class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider block mb-1">Snippet</span>
@@ -145,7 +173,7 @@
       <pre class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words max-h-96 overflow-y-auto select-text">{{ email.body_text or 'No plain text content provided in this email.' }}</pre>
     </div>
 
-    <!-- Extracted Embedded Links (§Part A) -->
+    <!-- Extracted Embedded Links (§BUG 2) -->
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <span class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
@@ -156,20 +184,45 @@
         <div class="rounded-xl border border-slate-800/80 bg-slate-900/50 overflow-hidden divide-y divide-slate-800/60 text-xs">
           {% for link in links %}
             {% set is_mismatch = link.text != link.href and (link.text.startswith('http://') or link.text.startswith('https://') or link.text.startswith('www.')) %}
-            <div class="p-3 space-y-1 {% if is_mismatch %}bg-amber-950/20 border-l-2 border-l-amber-500{% endif %}">
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] font-semibold text-slate-400 uppercase">Text:</span>
-                <span class="font-mono text-slate-200 select-all">{{ link.text or '(empty anchor text)' }}</span>
+            {% set has_redirect = link.final_url and link.final_url != link.href %}
+            <div class="p-3 space-y-1.5 {% if is_mismatch %}bg-amber-950/20 border-l-2 border-l-amber-500{% endif %}">
+              <div class="flex items-center gap-2 flex-wrap">
+                <!-- Prominent Hostname -->
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+                  {{ link.hostname or 'local/relative' }}
+                </span>
+
+                <!-- Display Text -->
+                <span class="font-medium text-slate-300">
+                  {{ link.text if link.text else '(image link)' }}
+                </span>
+
                 {% if is_mismatch %}
                   <span class="ml-auto px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800/60">
                     Display Mismatch
                   </span>
                 {% endif %}
               </div>
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] font-semibold text-slate-400 uppercase">Target:</span>
-                <span class="font-mono text-indigo-300 select-all break-all">{{ link.href }}</span>
-              </div>
+
+              <!-- Target URL with truncation and expand -->
+              <details class="group text-[11px]">
+                <summary class="cursor-pointer text-slate-400 hover:text-slate-200 flex items-center gap-1.5 focus:outline-none select-none">
+                  <span class="font-semibold text-slate-500 uppercase text-[10px]">Target:</span>
+                  <span class="font-mono text-indigo-300 truncate max-w-lg">{{ link.href }}</span>
+                  <span class="text-[10px] text-slate-500 group-open:hidden">(expand)</span>
+                  <span class="text-[10px] text-slate-500 hidden group-open:inline">(collapse)</span>
+                </summary>
+                <div class="mt-1 p-2 rounded bg-slate-950/80 border border-slate-800/60 font-mono text-indigo-300 break-all select-all">
+                  {{ link.href }}
+                </div>
+              </details>
+
+              {% if has_redirect %}
+                <div class="p-2 rounded bg-indigo-950/30 border border-indigo-900/40 text-[11px] space-y-0.5">
+                  <div class="text-[10px] font-semibold text-indigo-400 uppercase">Decoded Final Destination:</div>
+                  <div class="font-mono text-emerald-300 break-all select-all">{{ link.final_url }}</div>
+                </div>
+              {% endif %}
             </div>
           {% endfor %}
         </div>

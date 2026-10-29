@@ -23,10 +23,12 @@ from app.db.models import Email
 from app.db.session import get_db
 from app.ingest.demo_emails import get_demo_emails
 from app.ingest.gmail_client import gmail_client, is_oauth_in_progress
-from app.ingest.normalizer import normalize_message
+from app.ingest.normalizer import extract_all_links, normalize_message
 from app.settings import settings
 from app.state import app_state
-from app.ui.placeholder_scores import assign_placeholder_scores
+from app.priority.rules import evaluate_priority_rules
+from app.priority.worker import start_priority_analysis
+from app.rag.history import DEMO_SENT_CONTACTS, index_history_emails
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +184,11 @@ def _sync_demo(db: Session) -> SyncResponse:
             if not existing.links or existing.links == "[]":
                 existing.links = json.dumps(links_data)
             if existing.priority_score is None:
-                assign_placeholder_scores(existing)
+                rule_res = evaluate_priority_rules(existing, DEMO_SENT_CONTACTS)
+                existing.priority_score = rule_res["rule_score"]
+                existing.priority_label = "High" if rule_res["rule_score"] >= settings.priority_high_threshold else ("Low" if rule_res["rule_score"] <= settings.priority_low_threshold else "Medium")
+                existing.priority_reason = "Evaluated via baseline priority rules."
+                existing.priority_evidence = json.dumps([f"[{i+1}] {f}" for i, f in enumerate(rule_res["rule_facts"])])
             updated += 1
         else:
             raw_headers_dicts = [h.model_dump() for h in schema.raw_headers]
@@ -204,12 +210,19 @@ def _sync_demo(db: Session) -> SyncResponse:
                 is_read=schema.is_read,
                 is_demo=True,
                 opened_at=item.opened_at,
+                fraud_score=0.9 if "phish" in schema.gmail_id else 0.02,
             )
-            assign_placeholder_scores(new_email)
+            rule_res = evaluate_priority_rules(new_email, DEMO_SENT_CONTACTS)
+            new_email.priority_score = rule_res["rule_score"]
+            new_email.priority_label = "High" if rule_res["rule_score"] >= settings.priority_high_threshold else ("Low" if rule_res["rule_score"] <= settings.priority_low_threshold else "Medium")
+            new_email.priority_reason = "Evaluated via baseline priority rules."
+            new_email.priority_evidence = json.dumps([f"[{i+1}] {f}" for i, f in enumerate(rule_res["rule_facts"])])
             db.add(new_email)
             added += 1
 
+    index_history_emails(db, is_demo=True)
     db.commit()
+    start_priority_analysis(is_demo=True)
     total = db.query(Email).filter(Email.is_demo == True).count()
     return SyncResponse(
         mode="demo",
@@ -233,34 +246,52 @@ def _sync_gmail(db: Session) -> SyncResponse:
             detail=f"Failed to fetch messages from Gmail: {exc}",
         )
 
+    msg_ids = [m.get("id") for m in messages if m.get("id")]
+    if not msg_ids:
+        total = db.query(Email).filter(Email.is_demo == False).count()
+        return SyncResponse(
+            mode="real",
+            added=0,
+            updated=0,
+            total=total,
+            message="Gmail sync complete: 0 messages found.",
+        )
+
+    existing_rows = {
+        e.gmail_id: e for e in db.query(Email).filter(Email.gmail_id.in_(msg_ids)).all()
+    }
+
     added = 0
     updated = 0
+    batch_counter = 0
 
-    for msg_meta in messages:
-        msg_id = msg_meta.get("id")
-        if not msg_id:
-            continue
-
-        existing = db.query(Email).filter(Email.gmail_id == msg_id).first()
-        if existing:
-            # Refresh labels & read state
+    for msg_id in msg_ids:
+        if msg_id in existing_rows:
+            # Refresh labels & read state - fetch metadata from Gmail API
             try:
                 min_info = gmail_client.get_message_metadata(msg_id)
-                new_labels = min_info.get("labelIds", [])
-                existing.labels = json.dumps(new_labels)
-                existing.is_read = "UNREAD" not in new_labels
-                if min_info.get("snippet"):
-                    existing.snippet = html.unescape(min_info["snippet"])
-                if not existing.links or existing.links == "[]":
-                    from app.ingest.normalizer import extract_all_links
-                    existing.links = json.dumps(extract_all_links(existing.body_html, existing.body_text))
-                updated += 1
             except Exception as e:
                 logger.warning("Failed to refresh metadata for %s: %s", msg_id, e)
+                continue
+
+            existing = existing_rows[msg_id]
+            new_labels = min_info.get("labelIds", [])
+            existing.labels = json.dumps(new_labels)
+            existing.is_read = "UNREAD" not in new_labels
+            if min_info.get("snippet"):
+                existing.snippet = html.unescape(min_info["snippet"])
+            if not existing.links or existing.links == "[]":
+                existing.links = json.dumps(extract_all_links(existing.body_html, existing.body_text))
+            updated += 1
         else:
-            # Ingest full message
+            # Ingest full message - fetch from Gmail API
             try:
                 full_raw = gmail_client.get_message(msg_id)
+            except Exception as e:
+                logger.warning("Failed to fetch message %s from Gmail: %s", msg_id, e)
+                continue
+
+            try:
                 schema = normalize_message(full_raw)
                 raw_headers_dicts = [h.model_dump() for h in schema.raw_headers]
                 new_email = Email(
@@ -283,11 +314,20 @@ def _sync_gmail(db: Session) -> SyncResponse:
                     opened_at=None,
                 )
                 db.add(new_email)
+                existing_rows[msg_id] = new_email
                 added += 1
             except Exception as e:
                 logger.warning("Failed to ingest message %s: %s", msg_id, e)
 
+        batch_counter += 1
+        # Commit in small batches to keep SQLite write transactions short (§BUG 1)
+        if batch_counter % 10 == 0:
+            db.commit()
+
     db.commit()
+    from app.priority.worker import start_priority_analysis
+    start_priority_analysis(is_demo=False)
+
     total = db.query(Email).filter(Email.is_demo == False).count()
     return SyncResponse(
         mode="real",

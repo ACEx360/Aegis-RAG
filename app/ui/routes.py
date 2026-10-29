@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as dt
-import json
 from pathlib import Path
 from typing import Any
 
@@ -192,6 +190,10 @@ def render_tab(
         "counts": counts,
         "query": q,
         "nli_model": settings.nli_model,
+        "embedding_model": settings.embedding_model,
+        "is_analyzing": app_state.analysis_running,
+        "is_interrupted": app_state.analysis_interrupted,
+        "analysis_message": app_state.analysis_message,
     }
 
     if active_tab == "settings":
@@ -276,6 +278,7 @@ def get_email_panel_readonly(
     raw_headers = parse_json_safely(email_row.raw_headers)
     recipients = parse_json_safely(email_row.recipients)
     links = parse_json_safely(email_row.links)
+    priority_evidence = parse_json_safely(email_row.priority_evidence)
 
     context = {
         "request": request,
@@ -283,6 +286,7 @@ def get_email_panel_readonly(
         "raw_headers": raw_headers,
         "recipients": recipients,
         "links": links,
+        "priority_evidence": priority_evidence,
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
@@ -305,6 +309,7 @@ def open_and_get_email_panel(
     raw_headers = parse_json_safely(email_row.raw_headers)
     recipients = parse_json_safely(email_row.recipients)
     links = parse_json_safely(email_row.links)
+    priority_evidence = parse_json_safely(email_row.priority_evidence)
 
     context = {
         "request": request,
@@ -312,8 +317,67 @@ def open_and_get_email_panel(
         "raw_headers": raw_headers,
         "recipients": recipients,
         "links": links,
+        "priority_evidence": priority_evidence,
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
     }
     return templates.TemplateResponse(request=request, name="email_panel.html", context=context)
+
+
+@router.get("/ui/analysis/status", response_class=HTMLResponse, include_in_schema=False)
+def get_analysis_status(request: Request):
+    """HTMX polling endpoint for background priority analysis progress (§Stage 3)."""
+    if app_state.analysis_running:
+        msg = app_state.analysis_message or "Analyzing email priorities..."
+        return HTMLResponse(
+            f"""<div id="analysis-progress-banner" hx-get="/ui/analysis/status" hx-trigger="every 2s" hx-swap="outerHTML" class="p-3 mb-3 rounded-xl bg-indigo-950/60 border border-indigo-800/80 flex items-center justify-between text-xs text-indigo-300 shadow-lg">
+              <div class="flex items-center gap-2.5">
+                <svg class="animate-spin w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span><strong>Priority Analysis:</strong> {msg}</span>
+              </div>
+              <span class="text-[11px] font-mono text-indigo-400 uppercase tracking-wider">Background Worker Active</span>
+            </div>"""
+        )
+    if app_state.analysis_interrupted:
+        return HTMLResponse(
+            """<div id="analysis-progress-banner" class="p-3 mb-3 rounded-xl bg-amber-950/60 border border-amber-700/80 flex items-center justify-between text-xs text-amber-200 shadow-lg">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-amber-400 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span><strong>Priority Analysis:</strong> Analysis interrupted - click to resume</span>
+              </div>
+              <button hx-post="/ui/analysis/start" hx-target="#analysis-progress-banner" hx-swap="outerHTML" class="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg text-xs shadow transition-colors flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Resume Analysis
+              </button>
+            </div>"""
+        )
+    return HTMLResponse('<div id="analysis-progress-banner" class="hidden"></div>')
+
+
+@router.post("/ui/analysis/start", response_class=HTMLResponse, include_in_schema=False)
+def trigger_analysis(request: Request):
+    """Trigger background priority analysis worker on demand."""
+    from app.priority.worker import start_priority_analysis
+    started = start_priority_analysis(app_state.demo_mode)
+    target = request.headers.get("hx-target", "")
+    if target == "analysis-progress-banner":
+        return HTMLResponse(
+            """<div id="analysis-progress-banner" hx-get="/ui/analysis/status" hx-trigger="every 2s" hx-swap="outerHTML" class="p-3 mb-3 rounded-xl bg-indigo-950/60 border border-indigo-800/80 flex items-center justify-between text-xs text-indigo-300 shadow-lg">
+              <div class="flex items-center gap-2.5">
+                <svg class="animate-spin w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span><strong>Priority Analysis:</strong> Initializing priority analysis...</span>
+              </div>
+              <span class="text-[11px] font-mono text-indigo-400 uppercase tracking-wider">Background Worker Active</span>
+            </div>"""
+        )
+    msg = "Priority analysis started in background." if started else "Analysis is already running."
+    return HTMLResponse(f"<span class='text-xs text-indigo-300 font-mono'>{msg}</span>")

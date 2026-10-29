@@ -16,6 +16,12 @@ class _AppState:
 
     def __init__(self) -> None:
         self._demo_mode: bool = settings.demo_mode
+        # Background Priority Analysis worker state (§Stage 3)
+        self.analysis_running: bool = False
+        self.analysis_interrupted: bool = False
+        self.analysis_current: int = 0
+        self.analysis_total: int = 0
+        self.analysis_message: str = ""
 
     @property
     def demo_mode(self) -> bool:

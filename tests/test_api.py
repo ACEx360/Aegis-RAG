@@ -109,3 +109,57 @@ def test_auth_status_endpoint(client: TestClient):
     assert "oauth_in_progress" in data
     assert "credentials_present" in data
     assert "token_present" in data
+
+
+def test_sync_twice_against_already_stored_emails(client: TestClient):
+    """Syncing twice against stored emails must update without 500 error (tests extract_all_links)."""
+    from unittest.mock import patch
+
+    app_state.demo_mode = False
+
+    mock_raw_msg = {
+        "id": "msg_real_1",
+        "threadId": "th_1",
+        "snippet": "First sync snippet",
+        "labelIds": ["INBOX", "UNREAD"],
+        "internalDate": "1700000000000",
+        "payload": {
+            "headers": [
+                {"name": "Subject", "value": "Real Test Email"},
+                {"name": "From", "value": "alice@example.com"},
+                {"name": "To", "value": "me@example.com"},
+                {"name": "Date", "value": "Wed, 15 Nov 2023 12:00:00 +0000"},
+            ],
+            "mimeType": "text/html",
+            "body": {
+                "data": "PHA+SGVyZSBpcyBhIDxhIGhyZWY9Imh0dHBzOi8vZXhhbXBsZS5jb20iPmxpbms8L2E+PC9wPg=="
+            },
+        },
+    }
+    mock_metadata = {
+        "id": "msg_real_1",
+        "labelIds": ["INBOX"],
+        "snippet": "Updated snippet &amp; notes",
+    }
+
+    with patch("app.api.routes.gmail_client.list_message_ids", return_value=[{"id": "msg_real_1"}]), \
+         patch("app.api.routes.gmail_client.get_message", return_value=mock_raw_msg), \
+         patch("app.api.routes.gmail_client.get_message_metadata", return_value=mock_metadata):
+
+        # First sync: adds the message
+        resp1 = client.post("/api/emails/sync")
+        assert resp1.status_code == 200, resp1.text
+        data1 = resp1.json()
+        assert data1["added"] == 1
+        assert data1["updated"] == 0
+
+        # Second sync: updates the stored message (calls extract_all_links)
+        resp2 = client.post("/api/emails/sync")
+        assert resp2.status_code == 200, resp2.text
+        data2 = resp2.json()
+        assert data2["added"] == 0
+        assert data2["updated"] == 1
+
+    # Cleanup mode
+    client.post("/api/mode?mode=demo")
+

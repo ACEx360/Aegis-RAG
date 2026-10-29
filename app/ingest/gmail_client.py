@@ -13,7 +13,7 @@ import email.utils
 import json
 import logging
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from app.settings import settings
