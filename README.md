@@ -77,12 +77,12 @@ A local, self-hosted agentic email assistant for Gmail that prioritizes emails, 
 
 ---
 
-## Stage 4 — Multi-Layer Phishing Detection (Pass 4a Complete)
+## Stage 4 — Multi-Layer Phishing Detection & Evaluation (Pass 4a & 4b Complete)
 - **Layer 1: Sender Authentication (`app/phishing/providers/sender_auth.py`)**:
   - Trusts strictly the topmost `Authentication-Results` header with `authserv-id: mx.google.com`. Ignores forged/extra headers and records an evidence line.
   - Parses SPF, DKIM, DMARC outcomes (`pass`, `fail`, `softfail`, `neutral`, `none`).
-  - Detects `From` vs `Return-Path` / `smtp.mailfrom` domain mismatches (catches attacker relay spoofing even when SPF passes).
-  - Detects `From` vs `Reply-To` domain discrepancies (flags BEC and reply rerouting).
+  - Detects `From` vs `Return-Path` / `smtp.mailfrom` domain mismatches (catches attacker relay spoofing; recognizes ESP bounce domains when DMARC passes).
+  - Detects `From` vs `Reply-To` domain discrepancies (flags BEC and reply rerouting; handles shared organization SLDs under alternate marketing TLDs).
   - Flags display name anomalies (embedded foreign emails or brand name spoofing).
   - Abstains (`available=False`) when trusted auth headers are absent.
 - **Layer 2: URL & Domain Heuristics (`app/phishing/providers/url_heuristics.py`)**:
@@ -92,12 +92,27 @@ A local, self-hosted agentic email assistant for Gmail that prioritizes emails, 
   - Flags open redirect / forwarding parameters pointing to external domains (e.g. `google.com/url?q=evil.com`).
   - Includes an allowlist for known ESP/tracking services (`naukri.com`, `sendgrid.net`, `mailchimp.com`, etc.) that exempts subdomain penalties via registered-domain suffix checks, while never exempting anchor mismatches or external redirects.
   - Abstains (`available=False`) with a clean explanation when an email contains no links.
+- **Layer 3: Local BERT Semantic Classifier (`app/phishing/providers/bert_phishing.py`)**:
+  - Fine-tuned transformer model (`ealvaradob/bert-finetuned-phishing`) loaded locally from Hugging Face cache on CPU (`local_files_only=True`).
+  - Truncates to strict 512-token limit and measures per-email CPU latency in milliseconds.
+  - Detects rhetorical manipulation, urgency cues, and non-lexical phrasing.
+  - Gracefully degrades to `available=False` if model weights are not installed.
+- **Layer 4: LLM Social Engineering Check (`app/phishing/providers/gemini_social.py`)**:
+  - Gemini structured JSON analysis evaluating 4 psychological attack vectors: urgency/threats, authority impersonation, credential harvesting, and financial coercion.
+  - Prompt injection defense: email content is wrapped in strict boundary markers and treated strictly as untrusted data.
+  - Quota optimization: only triggered when preliminary risk score $\ge 0.25$.
+  - SQLite caching keyed by `(gmail_id, task_type='phishing_social', prompt_version='v2')`.
 - **Risk Fusion Engine (`app/phishing/fusion.py`)**:
   - Weighted average with automatic re-normalization across operational layers only.
-  - Strong layer floor: if any available layer scores $\ge 0.80$, final confidence is floored at $\ge 0.60$.
+  - Strong layer floor: if any available layer scores $\ge 0.80$ with a strong threat indicator (IP host, punycode, lookalike domain, anchor mismatch, auth failure), final confidence is floored at $\ge 0.60$.
   - Sent-contacts trust discount ($-30\%$): applied only when the sender's email address is in the user's sent contacts, SPF/DKIM both pass, and there are NO Reply-To or anchor-text mismatches. Never applied on display name alone.
   - Confidence bands: `"Likely phishing - N% confidence"` ($\ge 50\%$), `"Suspicious"` ($30\%\text{--}49\%$), and `"Low risk"` ($< 30\%$). Unscored emails remain `"Not analyzed yet"`.
   - Numbered, system-verified factual evidence items (`[1] SPF check result: ...`, `[2] ...`).
+- **Real-Inbox Calibration**:
+  - Calibrated across 75 real Gmail messages in `aegis.db`: exactly 2 flagged (the user's intentional test phishing attacks), 0 suspicious, and 73 verified Low risk.
+- **Phase 1 Evaluation Benchmark (`evaluation/`)**:
+  - `evaluation/data/phase1_with_headers.json`: 42 curated, labeled benchmark test cases (21 phishing, 21 legitimate) exercising all edge conditions.
+  - `evaluation/phase1_detection.py`: Runnable evaluation script supporting public dataset tuning (80/20 split) with data leakage warnings, text-only layer notices, per-layer/fused metrics, and structured JSON results export.
 - **Resumable Worker & "Re-run detection" Action**:
   - Tracks `fraud_version` column in SQLite; worker skips emails already scored at the current version.
   - Provides `POST /api/emails/re-detect` and Settings tab action to trigger immediate re-analysis.

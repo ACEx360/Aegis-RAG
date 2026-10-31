@@ -164,13 +164,23 @@ def evaluate_sender_auth(
 
     # 3. From vs Reply-To domain mismatch
     if reply_to_domain and from_domain:
-        if _get_root_domain(from_domain) != _get_root_domain(reply_to_domain):
-            has_strong_signal = True
-            anomalies.append(f"From domain ({from_domain}) mismatches Reply-To ({reply_to_domain})")
-            evidence.append(
-                f"From domain ({from_domain}) does not match Reply-To domain ({reply_to_domain})"
-            )
-            score += 0.45
+        from_root = _get_root_domain(from_domain)
+        reply_root = _get_root_domain(reply_to_domain)
+        if from_root != reply_root:
+            from_sld = from_root.split(".")[0]
+            reply_sld = reply_root.split(".")[0]
+            # Same organization/brand prefix under an alternate TLD with passing DMARC (e.g. unstop.news -> unstop.com)
+            if from_sld == reply_sld and len(from_sld) > 3 and dmarc_status == "pass":
+                evidence.append(
+                    f"[INFO] Reply-To domain ({reply_to_domain}) uses alternate TLD for organization ({from_domain}) (aligned via passing DMARC)"
+                )
+            else:
+                has_strong_signal = True
+                anomalies.append(f"From domain ({from_domain}) mismatches Reply-To ({reply_to_domain})")
+                evidence.append(
+                    f"[STRONG] From domain ({from_domain}) does not match Reply-To domain ({reply_to_domain})"
+                )
+                score += 0.45
 
     # 4. Display-name vs address spoofing
     if from_display:

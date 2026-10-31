@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # --- Models (Stage 3 & Stage 4+) -----------------------------------
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     nli_model: str = "cross-encoder/nli-MiniLM2-L6-H768"
-    hf_phishing_model: str = ""
+    hf_phishing_model: str = "ealvaradob/bert-finetuned-phishing"
 
     # --- App -------------------------------------------------------------
     demo_mode: bool = True
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     max_body_chars_for_rag: int = 500
 
     # --- Thresholds & Phishing (§7, §16, Stage 4) -----------------------
-    fraud_version: str = "v1"
+    fraud_version: str = "v2"
     fraud_threshold: float = 0.5
     fraud_suspicious_threshold: float = 0.3
     strong_layer_threshold: float = 0.8

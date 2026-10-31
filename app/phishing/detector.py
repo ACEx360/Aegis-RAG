@@ -18,6 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Email
 from app.phishing.fusion import FusionResult, fuse_phishing_layers
+from app.phishing.providers.bert_phishing import evaluate_bert_phishing
+from app.phishing.providers.gemini_social import evaluate_gemini_social
 from app.phishing.providers.sender_auth import evaluate_sender_auth
 from app.phishing.providers.url_heuristics import evaluate_url_heuristics
 from app.rag.history import get_known_contacts
@@ -90,7 +92,36 @@ def detect_phishing_for_email(
     )
     has_anchor_mismatch = getattr(url_result, "has_anchor_mismatch", False)
 
-    layers = [auth_result, url_result]
+    # 3. Run bert_phishing layer (§Pass 4b)
+    bert_result = evaluate_bert_phishing(email_obj)
+
+    # 4. Preliminary risk to determine whether to trigger gemini_social (§Pass 4b)
+    prelim_weights = {
+        "sender_auth": settings.weight_sender_auth,
+        "url_heuristics": settings.weight_url_heuristics,
+        "bert_phishing": settings.weight_bert_phishing,
+    }
+    avail_prelim = [l for l in (auth_result, url_result, bert_result) if l.available]
+    total_prelim_weight = sum(prelim_weights.get(l.name, 0.25) for l in avail_prelim)
+    if total_prelim_weight > 0:
+        prelim_score = sum(
+            l.score * (prelim_weights.get(l.name, 0.25) / total_prelim_weight)
+            for l in avail_prelim
+        )
+    else:
+        prelim_score = 0.0
+
+    if any(getattr(l, "has_strong_signal", False) for l in avail_prelim):
+        prelim_score = max(prelim_score, settings.gemini_social_trigger_threshold)
+
+    # 5. Run gemini_social layer conditionally (§Pass 4b)
+    social_result = evaluate_gemini_social(
+        email=email_obj,
+        preliminary_score=prelim_score,
+        db=db,
+    )
+
+    layers = [auth_result, url_result, bert_result, social_result]
 
     # 3. Known contacts (§Trust Signal)
     known_contacts = get_known_contacts(email_obj.is_demo)
