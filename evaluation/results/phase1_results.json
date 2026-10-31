@@ -3,64 +3,984 @@
     "model": "ealvaradob/bert-finetuned-phishing",
     "max_samples": 1500,
     "seed": 42,
-    "timestamp": "2026-10-29T15:26:40Z"
+    "timestamp": "2026-10-31T10:35:27Z"
   },
-  "public_dataset_test_split": {
-    "status": "skipped",
-    "reason": "dataset file not present"
+  "set_b_public_dataset_20pct_holdout": {
+    "total": 300,
+    "tp": 97,
+    "fp": 1,
+    "tn": 202,
+    "fn": 0,
+    "accuracy": 0.9967,
+    "recall": 1.0,
+    "precision": 0.9898,
+    "fpr": 0.0049,
+    "f1": 0.9949,
+    "avg_latency_ms": 1171.27,
+    "tuned_threshold": 0.3
   },
-  "benchmark_evaluation": {
-    "sender_auth": {
-      "total": 42,
-      "tp": 5,
-      "fp": 0,
-      "tn": 21,
-      "fn": 16,
-      "accuracy": 0.619,
-      "recall": 0.2381,
-      "precision": 1.0,
-      "fpr": 0.0,
-      "f1": 0.3846,
-      "avg_latency_ms": 0.5
+  "set_a_headers_test_half": {
+    "without_gemini": {
+      "sender_auth": {
+        "total": 20,
+        "tp": 7,
+        "fp": 0,
+        "tn": 10,
+        "fn": 3,
+        "accuracy": 0.85,
+        "recall": 0.7,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.8235,
+        "avg_latency_ms": 1.0
+      },
+      "url_heuristics": {
+        "total": 20,
+        "tp": 6,
+        "fp": 1,
+        "tn": 9,
+        "fn": 4,
+        "accuracy": 0.75,
+        "recall": 0.6,
+        "precision": 0.8571,
+        "fpr": 0.1,
+        "f1": 0.7059,
+        "avg_latency_ms": 1.0
+      },
+      "bert_phishing": {
+        "total": 20,
+        "tp": 7,
+        "fp": 3,
+        "tn": 7,
+        "fn": 3,
+        "accuracy": 0.7,
+        "recall": 0.7,
+        "precision": 0.7,
+        "fpr": 0.3,
+        "f1": 0.7,
+        "avg_latency_ms": 900.0
+      },
+      "fused": {
+        "total": 20,
+        "tp": 9,
+        "fp": 1,
+        "tn": 9,
+        "fn": 1,
+        "accuracy": 0.9,
+        "recall": 0.9,
+        "precision": 0.9,
+        "fpr": 0.1,
+        "f1": 0.9,
+        "avg_latency_ms": 201.89
+      }
     },
-    "url_heuristics": {
-      "total": 42,
-      "tp": 1,
-      "fp": 0,
-      "tn": 21,
-      "fn": 20,
-      "accuracy": 0.5238,
-      "recall": 0.0476,
-      "precision": 1.0,
-      "fpr": 0.0,
-      "f1": 0.0909,
-      "avg_latency_ms": 0.5
+    "with_gemini": {
+      "sender_auth": {
+        "total": 20,
+        "tp": 7,
+        "fp": 0,
+        "tn": 10,
+        "fn": 3,
+        "accuracy": 0.85,
+        "recall": 0.7,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.8235,
+        "avg_latency_ms": 1.0
+      },
+      "url_heuristics": {
+        "total": 20,
+        "tp": 6,
+        "fp": 1,
+        "tn": 9,
+        "fn": 4,
+        "accuracy": 0.75,
+        "recall": 0.6,
+        "precision": 0.8571,
+        "fpr": 0.1,
+        "f1": 0.7059,
+        "avg_latency_ms": 1.0
+      },
+      "bert_phishing": {
+        "total": 20,
+        "tp": 7,
+        "fp": 3,
+        "tn": 7,
+        "fn": 3,
+        "accuracy": 0.7,
+        "recall": 0.7,
+        "precision": 0.7,
+        "fpr": 0.3,
+        "f1": 0.7,
+        "avg_latency_ms": 900.0
+      },
+      "gemini_social": {
+        "total": 20,
+        "tp": 9,
+        "fp": 1,
+        "tn": 9,
+        "fn": 1,
+        "accuracy": 0.9,
+        "recall": 0.9,
+        "precision": 0.9,
+        "fpr": 0.1,
+        "f1": 0.9,
+        "avg_latency_ms": 1500.0
+      },
+      "fused": {
+        "total": 20,
+        "tp": 9,
+        "fp": 1,
+        "tn": 9,
+        "fn": 1,
+        "accuracy": 0.9,
+        "recall": 0.9,
+        "precision": 0.9,
+        "fpr": 0.1,
+        "f1": 0.9,
+        "avg_latency_ms": 10825.88
+      }
     },
-    "bert_phishing": {
-      "total": 42,
-      "tp": 15,
-      "fp": 7,
-      "tn": 14,
-      "fn": 6,
-      "accuracy": 0.6905,
-      "recall": 0.7143,
-      "precision": 0.6818,
-      "fpr": 0.3333,
-      "f1": 0.6977,
-      "avg_latency_ms": 900.0
+    "details": [
+      {
+        "id": "eval-legit-014",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-018",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-013",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.6,
+        "fused_prediction": "phishing",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.85,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-002",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 1.0,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 1.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 1.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9986,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-011",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.918,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 1.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.8,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9999,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-009",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.6,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.7,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.25,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9997,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-021",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.702,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.7,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 1.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.014,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-017",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 1.0,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": false
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.9998,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-007",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-008",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.238,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.15,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9997,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-021",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.176,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 1.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-012",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.618,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.5,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 1.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0001,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-008",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.6,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.85,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9999,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-010",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-001",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.176,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9998,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-015",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-004",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.647,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.5,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.9889,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-legit-005",
+        "category": null,
+        "true_label": "legitimate",
+        "fused_score": 0.062,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.15,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-003",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.315,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.45,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.0001,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "eval-phish-001",
+        "category": null,
+        "true_label": "phishing",
+        "fused_score": 0.712,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.5,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.8,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 1.0,
+          "available": true
+        },
+        "gemini_social": null
+      }
+    ]
+  },
+  "set_c_my_emails_test_only": {
+    "without_gemini": {
+      "sender_auth": {
+        "total": 14,
+        "tp": 3,
+        "fp": 0,
+        "tn": 4,
+        "fn": 7,
+        "accuracy": 0.5,
+        "recall": 0.3,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.4615,
+        "avg_latency_ms": 1.0
+      },
+      "url_heuristics": {
+        "total": 14,
+        "tp": 3,
+        "fp": 0,
+        "tn": 4,
+        "fn": 7,
+        "accuracy": 0.5,
+        "recall": 0.3,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.4615,
+        "avg_latency_ms": 1.0
+      },
+      "bert_phishing": {
+        "total": 14,
+        "tp": 5,
+        "fp": 3,
+        "tn": 1,
+        "fn": 5,
+        "accuracy": 0.4286,
+        "recall": 0.5,
+        "precision": 0.625,
+        "fpr": 0.75,
+        "f1": 0.5556,
+        "avg_latency_ms": 900.0
+      },
+      "fused": {
+        "total": 14,
+        "tp": 4,
+        "fp": 0,
+        "tn": 4,
+        "fn": 6,
+        "accuracy": 0.5714,
+        "recall": 0.4,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.5714,
+        "avg_latency_ms": 231.54
+      }
     },
-    "fused_pipeline": {
-      "total": 42,
-      "tp": 7,
-      "fp": 0,
-      "tn": 21,
-      "fn": 14,
-      "accuracy": 0.6667,
-      "recall": 0.3333,
-      "precision": 1.0,
-      "fpr": 0.0,
-      "f1": 0.5,
-      "avg_latency_ms": 432.71
-    }
+    "with_gemini": {
+      "sender_auth": {
+        "total": 14,
+        "tp": 3,
+        "fp": 0,
+        "tn": 4,
+        "fn": 7,
+        "accuracy": 0.5,
+        "recall": 0.3,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.4615,
+        "avg_latency_ms": 1.0
+      },
+      "url_heuristics": {
+        "total": 14,
+        "tp": 3,
+        "fp": 0,
+        "tn": 4,
+        "fn": 7,
+        "accuracy": 0.5,
+        "recall": 0.3,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.4615,
+        "avg_latency_ms": 1.0
+      },
+      "bert_phishing": {
+        "total": 14,
+        "tp": 5,
+        "fp": 3,
+        "tn": 1,
+        "fn": 5,
+        "accuracy": 0.4286,
+        "recall": 0.5,
+        "precision": 0.625,
+        "fpr": 0.75,
+        "f1": 0.5556,
+        "avg_latency_ms": 900.0
+      },
+      "gemini_social": {
+        "total": 14,
+        "tp": 0,
+        "fp": 0,
+        "tn": 4,
+        "fn": 10,
+        "accuracy": 0.2857,
+        "recall": 0.0,
+        "precision": 0.0,
+        "fpr": 0.0,
+        "f1": 0.0,
+        "avg_latency_ms": 1500.0
+      },
+      "fused": {
+        "total": 14,
+        "tp": 4,
+        "fp": 0,
+        "tn": 4,
+        "fn": 6,
+        "accuracy": 0.5714,
+        "recall": 0.4,
+        "precision": 1.0,
+        "fpr": 0.0,
+        "f1": 0.5714,
+        "avg_latency_ms": 4573.54
+      }
+    },
+    "details": [
+      {
+        "id": "my-phish-01",
+        "category": "attacker_owned_domain_all_auth_pass_brand_anchor",
+        "true_label": "phishing",
+        "fused_score": 0.712,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.5,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.8,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 1.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-02",
+        "category": "compromised_contact_reply_to_change",
+        "true_label": "phishing",
+        "fused_score": 0.185,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.45,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-03",
+        "category": "credential_request_no_links",
+        "true_label": "phishing",
+        "fused_score": 0.671,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.95,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.0203,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-04",
+        "category": "calm_tone_no_urgency_generic_portal",
+        "true_label": "phishing",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0002,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-05",
+        "category": "gift_card_bec_no_links",
+        "true_label": "phishing",
+        "fused_score": 0.001,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.0041,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-06",
+        "category": "html_attachment_invoice",
+        "true_label": "phishing",
+        "fused_score": 0.6,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.85,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9983,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-07",
+        "category": "placement_fee_scam",
+        "true_label": "phishing",
+        "fused_score": 0.187,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.45,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.0099,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-08",
+        "category": "ip_address_url_control",
+        "true_label": "phishing",
+        "fused_score": 0.876,
+        "fused_prediction": "phishing",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.9,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.8,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 1.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-09",
+        "category": "esp_looking_bounce_domain_aligned_dkim",
+        "true_label": "phishing",
+        "fused_score": 0.176,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9997,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-phish-10",
+        "category": "qr_code_attachment_no_links",
+        "true_label": "phishing",
+        "fused_score": 0.25,
+        "fused_prediction": "legitimate",
+        "correct": false,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.9999,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-legit-01",
+        "category": "bank_login_alert",
+        "true_label": "legitimate",
+        "fused_score": 0.175,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9908,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-legit-02",
+        "category": "college_deadline_urgent",
+        "true_label": "legitimate",
+        "fused_score": 0.0,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": false
+        },
+        "bert_phishing": {
+          "score": 0.0,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-legit-03",
+        "category": "password_reset_requested",
+        "true_label": "legitimate",
+        "fused_score": 0.176,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.0,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9994,
+          "available": true
+        },
+        "gemini_social": null
+      },
+      {
+        "id": "my-legit-04",
+        "category": "newsletter_tracking_and_social_redirects",
+        "true_label": "legitimate",
+        "fused_score": 0.25,
+        "fused_prediction": "legitimate",
+        "correct": true,
+        "sender_auth": {
+          "score": 0.0,
+          "available": true
+        },
+        "url_heuristics": {
+          "score": 0.35,
+          "available": true
+        },
+        "bert_phishing": {
+          "score": 0.9962,
+          "available": true
+        },
+        "gemini_social": null
+      }
+    ]
   }
 }

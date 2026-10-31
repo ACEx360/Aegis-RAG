@@ -74,7 +74,12 @@ def detect_phishing_for_email(
     sender_domain = sender_addr.split("@")[-1] if "@" in sender_addr else ""
 
     # 1. Run sender_auth layer (§Pass 4a)
-    auth_result = evaluate_sender_auth(raw_headers, email_obj.sender)
+    auth_result = evaluate_sender_auth(
+        raw_headers,
+        email_obj.sender,
+        subject=email_obj.subject or "",
+        body_text=body_text,
+    )
 
     # Inspect auth results for trust signal and tracker redirect checks
     spf_pass = any("spf check result: pass" in ev.lower() for ev in auth_result.evidence)
@@ -84,11 +89,13 @@ def detect_phishing_for_email(
     is_auth_clean = getattr(auth_result, "is_fully_clean", False)
 
     # 2. Run url_heuristics layer (§Pass 4a)
+    attachments_data = _parse_json_safely(email_obj.attachment_meta)
     url_result = evaluate_url_heuristics(
         links_data,
         body_text,
         sender_domain=sender_domain,
         dmarc_pass=dmarc_pass,
+        attachments=attachments_data,
     )
     has_anchor_mismatch = getattr(url_result, "has_anchor_mismatch", False)
 

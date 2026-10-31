@@ -22,5 +22,7 @@ token.json
 
 # Data directory (§3)
 data/
+evaluation/data/texts.json
+evaluation/data/phishing_dataset_*.json
 .analysis_status.json
 .ruff_cache/

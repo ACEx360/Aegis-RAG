@@ -15,6 +15,7 @@ import email.utils
 import re
 
 from app.phishing.providers.base import LayerResult
+from app.phishing.providers.url_heuristics import COMMON_BRANDS, LEGIT_BRAND_DOMAINS
 
 
 def _extract_domain(addr: str) -> str:
@@ -39,6 +40,8 @@ def _get_root_domain(domain: str) -> str:
 def evaluate_sender_auth(
     raw_headers: list[dict[str, str]],
     sender_str: str,
+    subject: str = "",
+    body_text: str = "",
 ) -> LayerResult:
     """Analyze sender authentication using the topmost mx.google.com Authentication-Results header."""
     auth_headers: list[str] = []
@@ -197,17 +200,47 @@ def evaluate_sender_auth(
                 score += 0.40
 
         # Brand name impersonation in display name
-        common_targets = ["paypal", "google", "microsoft", "apple", "netflix", "amazon", "chase", "wellsfargo", "bank"]
         disp_lower = from_display.lower()
-        for target in common_targets:
-            if target in disp_lower and target not in from_domain:
-                has_strong_signal = True
-                anomalies.append(f"Display name mentions '{target}' but sender domain is '{from_domain}'")
-                evidence.append(
-                    f"Display name mentions brand '{target}' while actual sender domain is '{from_domain}'"
-                )
-                score += 0.35
-                break
+        for brand, legit_domains in LEGIT_BRAND_DOMAINS.items():
+            if re.search(r"\b" + re.escape(brand) + r"\b", disp_lower):
+                from_root = _get_root_domain(from_domain) if from_domain else ""
+                is_legit = from_root in legit_domains or any(from_root.endswith("." + ld) for ld in legit_domains)
+                if not is_legit:
+                    has_strong_signal = True
+                    anomalies.append(f"Display name mentions brand '{brand}' while actual sender domain is '{from_domain}'")
+                    evidence.append(
+                        f"[STRONG] Display name claims brand '{brand}' but actual sender domain '{from_domain}' is not an authorized {brand} domain"
+                    )
+                    score += 0.50
+                    break
+
+    # 5. Deceptive subdomains in sender domain
+    if from_domain:
+        from_root = _get_root_domain(from_domain)
+        subdomains = from_domain[: -len(from_root)].rstrip(".") if from_domain != from_root else ""
+        if subdomains and (re.search(r"\.(com|net|org|edu|gov|io|co)\b", subdomains) or any(b in subdomains for b in COMMON_BRANDS)):
+            has_strong_signal = True
+            anomalies.append(f"Sender domain ({from_domain}) embeds deceptive brand or TLD in subdomains")
+            evidence.append(
+                f"[STRONG] Sender domain '{from_domain}' embeds deceptive brand/domain in subdomains of '{from_root}'"
+            )
+            score += 0.55
+
+    # 6. Unauthenticated sender soliciting sensitive credentials/actions
+    combined_text = f"{subject} {body_text}".lower()
+    CREDENTIAL_KEYWORDS = [
+        "password", "mfa token", "passcode", "otp", "login credentials",
+        "verify your account", "gift card", "routing number", "wire transfer",
+        "permanently deleted", "quarantined"
+    ]
+    solicited = [kw for kw in CREDENTIAL_KEYWORDS if kw in combined_text]
+    if solicited and dmarc_status != "pass":
+        has_strong_signal = True
+        anomalies.append(f"Unauthenticated sender solicits sensitive action: '{solicited[0]}'")
+        evidence.append(
+            f"[STRONG] Sender solicits sensitive credentials/action ('{solicited[0]}') without passing DMARC authentication"
+        )
+        score += 0.50
 
     score = min(max(score, 0.0), 1.0)
     is_fully_clean = not anomalies and spf_status == "pass" and dkim_status == "pass" and dmarc_status == "pass"

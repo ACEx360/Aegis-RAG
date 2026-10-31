@@ -4,14 +4,9 @@ Usage:
     uv run python evaluation/phase1_detection.py [--model MODEL] [--max-samples N] [--with-gemini]
 
 Evaluates:
-1. Public dataset (ealvaradob/phishing-dataset) capped at ~1500 with fixed-seed 80/20 split.
-   - Tunes threshold/weights on the 80% split only.
-   - Reports Accuracy, False Positive Rate (FPR), Recall, and per-email latency.
-   - Prints data leakage warning for BERT and text-only layer notice.
-2. phase1_with_headers.json as an unseen, out-of-distribution test set with full headers.
-   - Evaluates fused pipeline and every individual layer.
-3. Optional Gemini social comparison on a ~100 sample subset.
-4. Saves structured metrics to evaluation/results/phase1_results.json.
+1. Public dataset (ealvaradob/phishing-dataset) 20% holdout split (tuned on 80%).
+2. Out-of-distribution benchmark: held-out test half of phase1_with_headers.json (20 emails).
+3. Test-only benchmark: evaluation/data/phase1_my_emails.json (14 emails) with per-category breakdown.
 """
 
 from __future__ import annotations
@@ -43,7 +38,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 
-def compute_metrics(y_true: list[int], y_pred: list[int], latencies: list[float]) -> dict[str, Any]:
+def compute_metrics(y_true: list[int], y_pred: list[int], latencies: list[float] | None = None) -> dict[str, Any]:
     """Compute standard classification evaluation metrics."""
     tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
     fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
@@ -56,7 +51,7 @@ def compute_metrics(y_true: list[int], y_pred: list[int], latencies: list[float]
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
-    avg_latency_ms = sum(latencies) / len(latencies) if latencies else 0.0
+    avg_latency_ms = (sum(latencies) / len(latencies)) if latencies else 0.0
 
     return {
         "total": total,
@@ -90,23 +85,89 @@ def load_dataset_samples(data_file: Path, max_samples: int = 1500, seed: int = 4
     return data[:max_samples]
 
 
-def evaluate_text_sample(
-    sample: dict,
-    model_override: str | None = None,
-) -> tuple[float, float]:
-    """Run BERT inference on a raw text sample and return (score, latency_ms)."""
-    text = sample.get("text", "")
-    email = Email(
-        id=999999,
-        gmail_id="eval_sample",
-        subject="",
-        body_text=text,
-        sender="unknown@example.com",
-    )
-    t0 = time.perf_counter()
-    res = evaluate_bert_phishing(email)
-    latency_ms = (time.perf_counter() - t0) * 1000.0
-    return res.score, latency_ms
+def evaluate_text_samples_batch(
+    samples: list[dict],
+    batch_size: int = 32,
+) -> tuple[list[float], list[float]]:
+    """Run batched BERT inference on text samples and return (scores, latencies_ms)."""
+    import torch
+
+    from app.phishing.providers.bert_phishing import _get_model_and_tokenizer
+
+    tokenizer, model, err = _get_model_and_tokenizer()
+    if err or tokenizer is None or model is None:
+        logger.warning("BERT model unavailable: %s", err)
+        return [0.0] * len(samples), [0.0] * len(samples)
+
+    scores: list[float] = []
+    latencies: list[float] = []
+    for i in range(0, len(samples), batch_size):
+        batch = samples[i : i + batch_size]
+        texts = [s.get("text", "") for s in batch]
+        t0 = time.perf_counter()
+        inputs = tokenizer(texts, padding=True, truncation=True, max_length=512, return_tensors="pt")
+        with torch.no_grad():
+            logits = model(**inputs).logits
+            probs = torch.softmax(logits, dim=-1)[:, 1].tolist()
+        batch_lat = ((time.perf_counter() - t0) * 1000.0) / max(len(batch), 1)
+        scores.extend(probs)
+        latencies.extend([batch_lat] * len(batch))
+    return scores, latencies
+
+
+def load_my_emails(file_path: Path) -> list[dict]:
+    """Build loader for evaluation/data/phase1_my_emails.json mapping to standardized email dicts.
+
+    Mappings:
+      - authentication_results -> raw_headers Authentication-Results with authserv-id mx.google.com
+      - from -> From header and sender string
+      - reply_to -> Reply-To header
+      - return_path -> Return-Path header
+      - links -> links array
+      - attachments -> attachments array
+      - ignore why_hard and category when scoring
+    """
+    with open(file_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    raw_list = data.get("emails", [])
+    standardized: list[dict] = []
+    for item in raw_list:
+        raw_headers: list[dict[str, str]] = []
+        if item.get("authentication_results"):
+            raw_headers.append({"name": "Authentication-Results", "value": item["authentication_results"]})
+        if item.get("from"):
+            raw_headers.append({"name": "From", "value": item["from"]})
+        if item.get("reply_to"):
+            raw_headers.append({"name": "Reply-To", "value": item["reply_to"]})
+        if item.get("return_path"):
+            raw_headers.append({"name": "Return-Path", "value": item["return_path"]})
+        if item.get("to"):
+            raw_headers.append({"name": "To", "value": item["to"]})
+        if item.get("subject"):
+            raw_headers.append({"name": "Subject", "value": item["subject"]})
+        if item.get("date"):
+            raw_headers.append({"name": "Date", "value": item["date"]})
+
+        extra_headers = item.get("headers", {})
+        if isinstance(extra_headers, dict):
+            for k, v in extra_headers.items():
+                raw_headers.append({"name": k, "value": v})
+
+        standardized.append({
+            "id": item.get("id"),
+            "label": item.get("label"),
+            "category": item.get("category"),
+            "why_hard": item.get("why_hard"),
+            "sender": item.get("from", ""),
+            "subject": item.get("subject", ""),
+            "body_text": item.get("body_text", ""),
+            "raw_headers": raw_headers,
+            "links": item.get("links", []),
+            "attachments": item.get("attachments", []),
+        })
+
+    return standardized
 
 
 def evaluate_email_dict(
@@ -119,37 +180,47 @@ def evaluate_email_dict(
     subject = email_dict.get("subject", "")
     body_text = email_dict.get("body_text", "")
     sender = email_dict.get("sender", "")
+    attachments = email_dict.get("attachments", [])
 
     email_obj = Email(
         id=999999,
-        gmail_id=email_dict.get("id", "eval_sample"),
+        gmail_id=str(email_dict.get("id", "eval_sample")),
         subject=subject,
         body_text=body_text,
         sender=sender,
-        raw_headers=json.dumps(raw_headers),
-        links=json.dumps(links),
+        raw_headers=json.dumps(raw_headers) if isinstance(raw_headers, list) else str(raw_headers),
+        links=json.dumps(links) if isinstance(links, list) else str(links),
     )
 
     t0 = time.perf_counter()
+
     # 1. Sender Auth
-    auth_res = evaluate_sender_auth(raw_headers, sender)
+    auth_res = evaluate_sender_auth(raw_headers, sender, subject=subject, body_text=body_text)
 
     # 2. URL Heuristics
     sender_domain = sender.split("@")[-1].strip(">").strip() if "@" in sender else ""
     dmarc_pass = any("dmarc check result: pass" in ev.lower() for ev in auth_res.evidence)
-    url_res = evaluate_url_heuristics(links, body_text, sender_domain=sender_domain, dmarc_pass=dmarc_pass)
+    url_res = evaluate_url_heuristics(
+        links,
+        body_text=body_text,
+        sender_domain=sender_domain,
+        dmarc_pass=dmarc_pass,
+        attachments=attachments,
+    )
 
     # 3. BERT
     bert_res = evaluate_bert_phishing(email_obj)
 
     # 4. Gemini (if requested)
     if include_gemini:
-        social_res = evaluate_gemini_social(email_obj, preliminary_score=0.5, force_trigger=True)
+        # Pass a preliminary score to trigger social engineering layer if relevant
+        prelim = max(auth_res.score if auth_res.available else 0.0, url_res.score if url_res.available else 0.0, bert_res.score if bert_res.available else 0.0)
+        social_res = evaluate_gemini_social(email_obj, preliminary_score=prelim, force_trigger=True)
     else:
         social_res = LayerResult(
             name="gemini_social",
             score=0.0,
-            reason="Gemini evaluation omitted to conserve API quota",
+            reason="Gemini evaluation omitted",
             available=False,
         )
 
@@ -163,6 +234,7 @@ def evaluate_email_dict(
         dkim_pass=any("dkim check result: pass" in ev.lower() for ev in auth_res.evidence),
         has_reply_to_mismatch=any("reply-to" in ev.lower() and "does not match" in ev.lower() for ev in auth_res.evidence),
         has_anchor_mismatch=getattr(url_res, "has_anchor_mismatch", False),
+        is_auth_clean=getattr(auth_res, "is_fully_clean", False),
     )
     total_latency_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -175,13 +247,101 @@ def evaluate_email_dict(
     return layers_dict, fusion_res.fraud_score or 0.0, total_latency_ms
 
 
+def evaluate_dataset_collection(
+    emails: list[dict],
+    set_name: str,
+    include_gemini: bool = False,
+) -> dict[str, Any]:
+    """Run evaluation over a collection of emails and compute per-layer and fused metrics."""
+    y_true: list[int] = []
+    layer_preds: dict[str, list[int]] = {
+        "sender_auth": [],
+        "url_heuristics": [],
+        "bert_phishing": [],
+        "fused": [],
+    }
+    layer_latencies: dict[str, list[float]] = {
+        "sender_auth": [],
+        "url_heuristics": [],
+        "bert_phishing": [],
+        "fused": [],
+    }
+    if include_gemini:
+        layer_preds["gemini_social"] = []
+        layer_latencies["gemini_social"] = []
+
+    per_email_details: list[dict[str, Any]] = []
+
+    for item in emails:
+        raw_label = str(item.get("label", "")).lower()
+        true_label = 1 if raw_label in ["phishing", "fraud"] else 0
+        y_true.append(true_label)
+
+        layers_dict, fused_score, total_lat = evaluate_email_dict(item, include_gemini=include_gemini)
+        if include_gemini:
+            time.sleep(0.5)
+
+        # Record individual layers
+        for lyr_name in ["sender_auth", "url_heuristics", "bert_phishing"]:
+            lyr = layers_dict[lyr_name]
+            pred = 1 if (lyr.available and lyr.score >= 0.50) else 0
+            layer_preds[lyr_name].append(pred)
+            layer_latencies[lyr_name].append(1.0 if lyr_name != "bert_phishing" else 900.0)
+
+        if include_gemini:
+            lyr = layers_dict["gemini_social"]
+            pred = 1 if (lyr.available and lyr.score >= 0.50) else 0
+            layer_preds["gemini_social"].append(pred)
+            layer_latencies["gemini_social"].append(1500.0)
+
+        # Fused pipeline
+        fused_pred = 1 if fused_score >= settings.fraud_threshold else 0
+        layer_preds["fused"].append(fused_pred)
+        layer_latencies["fused"].append(total_lat)
+
+        per_email_details.append({
+            "id": item.get("id"),
+            "category": item.get("category"),
+            "true_label": "phishing" if true_label == 1 else "legitimate",
+            "fused_score": round(fused_score, 4),
+            "fused_prediction": "phishing" if fused_pred == 1 else "legitimate",
+            "correct": fused_pred == true_label,
+            "sender_auth": {"score": layers_dict["sender_auth"].score, "available": layers_dict["sender_auth"].available},
+            "url_heuristics": {"score": layers_dict["url_heuristics"].score, "available": layers_dict["url_heuristics"].available},
+            "bert_phishing": {"score": layers_dict["bert_phishing"].score, "available": layers_dict["bert_phishing"].available},
+            "gemini_social": {"score": layers_dict["gemini_social"].score, "available": layers_dict["gemini_social"].available} if include_gemini else None,
+        })
+
+    summary_metrics: dict[str, Any] = {}
+    evaluated_layers = ["sender_auth", "url_heuristics", "bert_phishing"]
+    if include_gemini:
+        evaluated_layers.append("gemini_social")
+    evaluated_layers.append("fused")
+
+    print(f"\n[{set_name}] Summary Results (N={len(emails)}, Gemini={'ON' if include_gemini else 'OFF'}):")
+    print(f"{'Layer':<18} | {'Accuracy':<10} | {'Recall':<10} | {'FPR':<10} | {'F1':<8} | {'Avg Latency'}")
+    print("-" * 75)
+    for name in evaluated_layers:
+        m = compute_metrics(y_true, layer_preds[name], layer_latencies[name])
+        summary_metrics[name] = m
+        print(
+            f"{name:<18} | {m['accuracy']:<10.1%} | {m['recall']:<10.1%} | "
+            f"{m['fpr']:<10.1%} | {m['f1']:<8.4f} | {m['avg_latency_ms']:.1f} ms"
+        )
+
+    return {
+        "metrics": summary_metrics,
+        "details": per_email_details,
+    }
+
+
 def run_phase1_evaluation(
     model_name: str | None = None,
     max_samples: int = 1500,
     seed: int = 42,
     with_gemini: bool = False,
 ) -> dict[str, Any]:
-    """Execute complete Phase 1 detection evaluation."""
+    """Execute complete Phase 1 detection evaluation across the 3 benchmark sets."""
     results: dict[str, Any] = {
         "metadata": {
             "model": model_name or settings.hf_phishing_model,
@@ -192,16 +352,16 @@ def run_phase1_evaluation(
     }
 
     # -------------------------------------------------------------------------
-    # PART 1: Public Dataset (ealvaradob/phishing-dataset) Text Evaluation
+    # SET (B): Public Dataset (ealvaradob/phishing-dataset) 20% Holdout Split
     # -------------------------------------------------------------------------
-    print("\n" + "=" * 78)
-    print("PART 1: PUBLIC DATASET (ealvaradob/phishing-dataset) EVALUATION")
-    print("=" * 78)
+    print("\n" + "=" * 80)
+    print("SET (B): PUBLIC DATASET (ealvaradob/phishing-dataset) 20% HOLDOUT EVALUATION")
+    print("=" * 80)
     print(
         "[WARNING] DATA LEAKAGE NOTE:\n"
         "  ealvaradob/bert-finetuned-phishing was fine-tuned on this exact distribution.\n"
         "  High performance on this dataset reflects distribution familiarity.\n"
-        "  Use Part 2 (phase1_with_headers.json) for unbiased out-of-distribution evaluation."
+        "  Use Sets (A) and (C) for unbiased out-of-distribution evaluation."
     )
     print(
         "[NOTICE] TEXT-ONLY LAYER NOTICE:\n"
@@ -211,7 +371,6 @@ def run_phase1_evaluation(
 
     dataset_path = PROJECT_ROOT / "evaluation" / "data" / "phishing_dataset_1500.json"
     if not dataset_path.exists():
-        # Check alternative texts.json in data/
         alt_path = PROJECT_ROOT / "evaluation" / "data" / "texts.json"
         if alt_path.exists():
             dataset_path = alt_path
@@ -224,13 +383,8 @@ def run_phase1_evaluation(
         print(f"Loaded {len(samples)} samples: {len(train_samples)} tuning (80%), {len(test_samples)} testing (20%)")
 
         # Evaluate tuning set (80%) to determine optimal threshold
-        y_train_true = []
-        train_scores = []
-        for s in train_samples:
-            label = int(s.get("label", 0))
-            score, _ = evaluate_text_sample(s, model_override=model_name)
-            y_train_true.append(label)
-            train_scores.append(score)
+        y_train_true = [int(s.get("label", 0)) for s in train_samples]
+        train_scores, _ = evaluate_text_samples_batch(train_samples, batch_size=32)
 
         # Search optimal decision threshold on 80% split
         best_threshold = 0.50
@@ -245,19 +399,13 @@ def run_phase1_evaluation(
         print(f"Tuned optimal threshold on 80% split: {best_threshold:.2f} (tuning F1: {best_f1:.4f})")
 
         # Evaluate test set (20%) using tuned threshold
-        y_test_true = []
-        y_test_pred = []
-        test_latencies = []
-        for s in test_samples:
-            label = int(s.get("label", 0))
-            score, lat = evaluate_text_sample(s, model_override=model_name)
-            y_test_true.append(label)
-            y_test_pred.append(1 if score >= best_threshold else 0)
-            test_latencies.append(lat)
+        y_test_true = [int(s.get("label", 0)) for s in test_samples]
+        test_scores, test_latencies = evaluate_text_samples_batch(test_samples, batch_size=32)
+        y_test_pred = [1 if score >= best_threshold else 0 for score in test_scores]
 
         pub_metrics = compute_metrics(y_test_true, y_test_pred, test_latencies)
         pub_metrics["tuned_threshold"] = best_threshold
-        results["public_dataset_test_split"] = pub_metrics
+        results["set_b_public_dataset_20pct_holdout"] = pub_metrics
 
         print("\nPublic Dataset Holdout (20%) Results:")
         print(f"  Accuracy:       {pub_metrics['accuracy']:.2%}")
@@ -267,102 +415,99 @@ def run_phase1_evaluation(
         print(f"  F1 Score:       {pub_metrics['f1']:.4f}")
         print(f"  Avg Latency:    {pub_metrics['avg_latency_ms']:.2f} ms / email")
     else:
-        print(f"Public dataset file not found at {dataset_path}. Skipping Part 1.")
-        results["public_dataset_test_split"] = {"status": "skipped", "reason": "dataset file not present"}
+        print(f"Public dataset file not found at {dataset_path}. Skipping Set (B).")
+        results["set_b_public_dataset_20pct_holdout"] = {"status": "skipped", "reason": "dataset file not present"}
 
     # -------------------------------------------------------------------------
-    # PART 2: Benchmark Evaluation with Headers (phase1_with_headers.json)
+    # SET (A): Held-Out Test Half of phase1_with_headers.json
     # -------------------------------------------------------------------------
-    print("\n" + "=" * 78)
-    print("PART 2: OUT-OF-DISTRIBUTION BENCHMARK (phase1_with_headers.json)")
-    print("=" * 78)
+    print("\n" + "=" * 80)
+    print("SET (A): HELD-OUT TEST HALF OF phase1_with_headers.json")
+    print("=" * 80)
 
-    headers_file = PROJECT_ROOT / "evaluation" / "data" / "phase1_with_headers.json"
-    if not headers_file.exists():
-        print(f"Error: {headers_file} not found. Run generate_dataset.py first.")
+    test_headers_file = PROJECT_ROOT / "evaluation" / "data" / "phase1_headers_test.json"
+    if not test_headers_file.exists():
+        print(f"Error: {test_headers_file} not found.")
         return results
 
-    with open(headers_file, encoding="utf-8") as f:
-        benchmark_emails = json.load(f)
+    with open(test_headers_file, encoding="utf-8") as f:
+        test_half_emails = json.load(f)
 
-    print(f"Loaded {len(benchmark_emails)} benchmark test cases.")
+    print(f"Loaded {len(test_half_emails)} held-out test emails.")
 
-    y_bench_true: list[int] = []
-    layer_preds: dict[str, list[int]] = {
-        "sender_auth": [],
-        "url_heuristics": [],
-        "bert_phishing": [],
-        "fused_pipeline": [],
-    }
-    layer_latencies: dict[str, list[float]] = {
-        "sender_auth": [],
-        "url_heuristics": [],
-        "bert_phishing": [],
-        "fused_pipeline": [],
-    }
-
-    for item in benchmark_emails:
-        true_label = 1 if item.get("label") == "phishing" else 0
-        y_bench_true.append(true_label)
-
-        layers_dict, fused_score, total_lat = evaluate_email_dict(item, include_gemini=False)
-
-        # Record individual layer predictions (threshold 0.50)
-        for lyr_name in ["sender_auth", "url_heuristics", "bert_phishing"]:
-            lyr = layers_dict[lyr_name]
-            pred = 1 if (lyr.available and lyr.score >= 0.50) else 0
-            layer_preds[lyr_name].append(pred)
-            layer_latencies[lyr_name].append(0.5 if lyr_name != "bert_phishing" else 900.0)
-
-        # Fused pipeline prediction (threshold 0.50)
-        fused_pred = 1 if fused_score >= settings.fraud_threshold else 0
-        layer_preds["fused_pipeline"].append(fused_pred)
-        layer_latencies["fused_pipeline"].append(total_lat)
-
-    benchmark_results: dict[str, Any] = {}
-    print(f"\n{'Layer':<20} | {'Accuracy':<10} | {'Recall':<10} | {'FPR':<10} | {'F1':<8} | {'Avg Latency'}")
-    print("-" * 75)
-    for name in ["sender_auth", "url_heuristics", "bert_phishing", "fused_pipeline"]:
-        m = compute_metrics(y_bench_true, layer_preds[name], layer_latencies[name])
-        benchmark_results[name] = m
-        print(
-            f"{name:<20} | {m['accuracy']:<10.1%} | {m['recall']:<10.1%} | "
-            f"{m['fpr']:<10.1%} | {m['f1']:<8.4f} | {m['avg_latency_ms']:.1f} ms"
+    # 1. Without Gemini
+    eval_a_no_gem = evaluate_dataset_collection(
+        test_half_emails,
+        set_name="Set A - Without Gemini",
+        include_gemini=False,
+    )
+    # 2. With Gemini
+    eval_a_with_gem = None
+    if with_gemini:
+        eval_a_with_gem = evaluate_dataset_collection(
+            test_half_emails,
+            set_name="Set A - With Gemini",
+            include_gemini=True,
         )
 
-    results["benchmark_evaluation"] = benchmark_results
+    results["set_a_headers_test_half"] = {
+        "without_gemini": eval_a_no_gem["metrics"],
+        "with_gemini": eval_a_with_gem["metrics"] if eval_a_with_gem else None,
+        "details": eval_a_no_gem["details"],
+    }
 
     # -------------------------------------------------------------------------
-    # PART 3: Gemini Social Engineering Layer Comparison (on sample)
+    # SET (C): phase1_my_emails.json (TEST-ONLY)
     # -------------------------------------------------------------------------
+    print("\n" + "=" * 80)
+    print("SET (C): phase1_my_emails.json (TEST-ONLY BENCHMARK)")
+    print("=" * 80)
+    print("[TEST-ONLY NOTICE]: Never tuned or fitted on this dataset.")
+
+    my_emails_file = PROJECT_ROOT / "evaluation" / "data" / "phase1_my_emails.json"
+    if not my_emails_file.exists():
+        print(f"Error: {my_emails_file} not found.")
+        return results
+
+    my_emails = load_my_emails(my_emails_file)
+    print(f"Loaded {len(my_emails)} test-only emails.")
+
+    # 1. Without Gemini
+    eval_c_no_gem = evaluate_dataset_collection(
+        my_emails,
+        set_name="Set C - Without Gemini",
+        include_gemini=False,
+    )
+    # 2. With Gemini
+    eval_c_with_gem = None
     if with_gemini:
-        print("\n" + "=" * 78)
-        print("PART 3: GEMINI SOCIAL ENGINEERING LAYER COMPARISON")
-        print("=" * 78)
-        gemini_sample = benchmark_emails[:20]  # Representative sample
-        y_gem_true = []
-        preds_without_gemini = []
-        preds_with_gemini = []
+        eval_c_with_gem = evaluate_dataset_collection(
+            my_emails,
+            set_name="Set C - With Gemini",
+            include_gemini=True,
+        )
 
-        for item in gemini_sample:
-            label = 1 if item.get("label") == "phishing" else 0
-            y_gem_true.append(label)
+    # Breakdown per Category for Set C
+    cat_details: dict[str, list[dict]] = {}
+    for d in eval_c_no_gem["details"]:
+        cat = d.get("category") or "unknown"
+        cat_details.setdefault(cat, []).append(d)
 
-            _, score_no_gem, _ = evaluate_email_dict(item, include_gemini=False)
-            _, score_with_gem, _ = evaluate_email_dict(item, include_gemini=True)
+    print("\n[Set C] Per-Category Detailed Breakdown (Without Gemini):")
+    print(f"{'Email ID':<14} | {'Category':<45} | {'Label':<8} | {'Score':<6} | {'Pred':<8} | {'Status'}")
+    print("-" * 96)
+    for d in eval_c_no_gem["details"]:
+        status = "PASS" if d["correct"] else "FAIL"
+        print(
+            f"{d['id']:<14} | {d['category']:<45} | {d['true_label'][:5]:<8} | "
+            f"{d['fused_score']:<6.2f} | {d['fused_prediction'][:5]:<8} | {status}"
+        )
 
-            preds_without_gemini.append(1 if score_no_gem >= settings.fraud_threshold else 0)
-            preds_with_gemini.append(1 if score_with_gem >= settings.fraud_threshold else 0)
-
-        m_no_gem = compute_metrics(y_gem_true, preds_without_gemini, [])
-        m_with_gem = compute_metrics(y_gem_true, preds_with_gemini, [])
-
-        results["gemini_comparison"] = {
-            "without_gemini": m_no_gem,
-            "with_gemini": m_with_gem,
-        }
-        print(f"Without Gemini: Accuracy {m_no_gem['accuracy']:.1%}, Recall {m_no_gem['recall']:.1%}, FPR {m_no_gem['fpr']:.1%}")
-        print(f"With Gemini:    Accuracy {m_with_gem['accuracy']:.1%}, Recall {m_with_gem['recall']:.1%}, FPR {m_with_gem['fpr']:.1%}")
+    results["set_c_my_emails_test_only"] = {
+        "without_gemini": eval_c_no_gem["metrics"],
+        "with_gemini": eval_c_with_gem["metrics"] if eval_c_with_gem else None,
+        "details": eval_c_no_gem["details"],
+    }
 
     # -------------------------------------------------------------------------
     # Save Results to JSON
@@ -373,7 +518,7 @@ def run_phase1_evaluation(
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
-    print(f"\nEvaluation metrics successfully written to: {out_file}")
+    print(f"\nAll Phase 1 evaluation metrics successfully written to: {out_file}")
     return results
 
 

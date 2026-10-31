@@ -19,7 +19,9 @@ Checks:
 from __future__ import annotations
 
 import re
+from typing import Any
 import urllib.parse
+from typing import Any
 
 from app.phishing.providers.base import LayerResult
 from app.settings import settings
@@ -31,6 +33,11 @@ ESP_ALLOWLIST = {
     "list-manage.com",
     "substack.com",
     "constantcontact.com",
+    "salesforce.com",
+    "hubspotemail.net",
+    "hubspot.com",
+    "marketo.com",
+    "klaviyo.com",
 }
 
 URL_SHORTENERS = {
@@ -44,18 +51,43 @@ URL_SHORTENERS = {
     "cutt.ly",
 }
 
-COMMON_BRANDS = [
-    "paypal",
-    "google",
-    "microsoft",
-    "apple",
-    "amazon",
-    "netflix",
-    "bankofamerica",
-    "chase",
-    "wellsfargo",
-    "naukri",
-]
+LEGIT_BRAND_DOMAINS: dict[str, set[str]] = {
+    "paypal": {"paypal.com", "paypal.me"},
+    "google": {"google.com", "gmail.com", "googleblog.com", "youtube.com", "withgoogle.com", "googlecloudcommunity.com", "googleusercontent.com"},
+    "microsoft": {"microsoft.com", "office.com", "live.com", "outlook.com", "office365.com"},
+    "apple": {"apple.com", "icloud.com"},
+    "amazon": {"amazon.com", "amazon.in", "amazon.co.uk", "amazon.de", "aws.amazon.com"},
+    "netflix": {"netflix.com"},
+    "chase": {"chase.com"},
+    "bankofamerica": {"bankofamerica.com"},
+    "wellsfargo": {"wellsfargo.com"},
+    "docusign": {"docusign.com", "docusign.net"},
+    "dropbox": {"dropbox.com"},
+    "zoom": {"zoom.us", "zoom.com"},
+    "linkedin": {"linkedin.com"},
+    "facebook": {"facebook.com", "fb.com", "meta.com"},
+    "meta": {"meta.com", "facebook.com", "instagram.com"},
+    "instagram": {"instagram.com"},
+    "dhl": {"dhl.com", "dhl.de"},
+    "fedex": {"fedex.com"},
+    "irs": {"irs.gov"},
+    "naukri": {"naukri.com"},
+}
+
+COMMON_BRANDS = list(LEGIT_BRAND_DOMAINS.keys())
+ALL_LEGIT_DOMAINS = {dom for doms in LEGIT_BRAND_DOMAINS.values() for dom in doms}
+
+DANGEROUS_URL_EXTENSIONS = {
+    ".exe", ".scr", ".vbs", ".js", ".iso", ".bat", ".cmd",
+    ".msi", ".pdf.exe", ".doc.exe", ".zip.exe", ".hta", ".wsf",
+}
+
+DANGEROUS_ATTACHMENT_EXTENSIONS = {
+    ".exe", ".scr", ".vbs", ".js", ".iso", ".bat", ".cmd",
+    ".msi", ".pdf.exe", ".doc.exe", ".zip.exe", ".html", ".htm", ".hta", ".wsf",
+}
+
+HIGH_ABUSE_TLDS = {".xyz", ".top", ".cc", ".link", ".buzz", ".club", ".info", ".biz", ".work", ".site"}
 
 LOOKALIKE_PATTERNS = [
     (r"paypa[l1i]", "paypal"),
@@ -64,6 +96,8 @@ LOOKALIKE_PATTERNS = [
     (r"app[l1]e", "apple"),
     (r"am[a4]z[o0]n", "amazon"),
     (r"netfl[i1]x", "netflix"),
+    (r"d[o0]cusign", "docusign"),
+    (r"dr[o0]pbox", "dropbox"),
 ]
 
 
@@ -181,6 +215,21 @@ def _check_host_threats(
             ))
             break
 
+    # Brand embedded deceptively in root domain (STRONG)
+    for brand, legit_domains in LEGIT_BRAND_DOMAINS.items():
+        if brand in root_domain:
+            is_legit = root_domain in legit_domains or any(root_domain.endswith("." + ld) for ld in legit_domains)
+            if not is_legit:
+                signals.append((
+                    "deceptive_brand_domain",
+                    host,
+                    True,
+                    0.80,
+                    f"Domain '{root_domain}' deceptively contains brand '{brand}'",
+                    f"[STRONG] Domain '{root_domain}' deceptively contains brand '{brand}' but is not an authorized {brand} domain",
+                ))
+                break
+
     # Brand embedded in foreign subdomain (STRONG)
     for brand in COMMON_BRANDS:
         if brand in host and brand not in root_domain:
@@ -206,6 +255,20 @@ def _check_host_threats(
             f"[STRONG] Deceptive host '{host}' embeds full domain name within subdomains",
         ))
 
+    # Dangerous payload or executable file extension in URL (STRONG)
+    href_clean = href.split("?")[0].split("#")[0].lower()
+    for ext in DANGEROUS_URL_EXTENSIONS:
+        if href_clean.endswith(ext):
+            signals.append((
+                "dangerous_payload",
+                host,
+                True,
+                0.85,
+                f"Link points directly to executable/payload: {ext}",
+                f"[STRONG] Link points directly to risky payload/executable file ({ext}): {href}",
+            ))
+            break
+
     # 4. Shorteners (WEAK)
     if host in URL_SHORTENERS:
         signals.append((
@@ -229,12 +292,21 @@ def _check_host_threats(
             f"[WEAK] Suspiciously excessive subdomains ({len(subdomain_parts)} levels) in host: {host}",
         ))
 
-    # 6. Insecure HTTP on auth/action link (WEAK)
+    # 6. Insecure HTTP on auth/action link or high-abuse generic TLD (WEAK)
     if href.lower().startswith("http://"):
+        if any(host.endswith(tld) for tld in HIGH_ABUSE_TLDS):
+            signals.append((
+                "insecure_high_abuse_tld",
+                host,
+                False,
+                0.25,
+                f"Insecure HTTP on generic/high-abuse TLD: {host}",
+                f"[WEAK] Insecure HTTP protocol used with high-abuse generic TLD ({host})",
+            ))
         try:
             parsed = urllib.parse.urlparse(href)
             path_and_query = (parsed.path + " " + parsed.query).lower()
-            sensitive_keywords = ["login", "verify", "auth", "secure", "account", "update", "bank"]
+            sensitive_keywords = ["login", "verify", "auth", "secure", "account", "update", "bank", "pay"]
             if any(k in path_and_query for k in sensitive_keywords):
                 signals.append((
                     "insecure_http",
@@ -255,14 +327,15 @@ def evaluate_url_heuristics(
     body_text: str,
     sender_domain: str = "",
     dmarc_pass: bool = False,
+    attachments: list[dict[str, Any]] | None = None,
 ) -> LayerResult:
-    """Analyze all URLs in links and body text for phishing indicators with signal deduplication."""
+    """Analyze all URLs in links, body text, and attachments for phishing indicators with signal deduplication."""
     all_links: list[tuple[str, str]] = []  # (text, href)
 
     for item in links_data:
         if isinstance(item, dict):
-            href = str(item.get("href", "")).strip()
-            text = str(item.get("text", "")).strip()
+            href = str(item.get("href") or item.get("url") or "").strip()
+            text = str(item.get("text") or item.get("title") or "").strip()
             if href:
                 all_links.append((text, href))
 
@@ -272,16 +345,6 @@ def evaluate_url_heuristics(
         if u not in seen_hrefs:
             all_links.append(("", u))
             seen_hrefs.add(u)
-
-    if not all_links:
-        return LayerResult(
-            name="url_heuristics",
-            score=0.0,
-            reason="No URLs found in email body",
-            evidence=["No links detected in email"],
-            available=False,
-            has_strong_signal=False,
-        )
 
     seen_signal_keys: set[tuple[str, str]] = set()
     strong_points = 0.0
@@ -303,6 +366,33 @@ def evaluate_url_heuristics(
         else:
             weak_points += pts
 
+    # Check attachments for high-risk payload types
+    if attachments:
+        for att in attachments:
+            if isinstance(att, dict):
+                fname = str(att.get("filename") or att.get("name") or "").lower().strip()
+                for ext in DANGEROUS_ATTACHMENT_EXTENSIONS:
+                    if fname.endswith(ext):
+                        add_signal(
+                            "risky_attachment",
+                            fname,
+                            True,
+                            0.85,
+                            f"Risky attachment file: {fname}",
+                            f"[STRONG] Email includes high-risk attachment ({fname}) with dangerous file extension ({ext})",
+                        )
+                        break
+
+    if not all_links and not anomalies:
+        return LayerResult(
+            name="url_heuristics",
+            score=0.0,
+            reason="No URLs found in email body",
+            evidence=["No links detected in email"],
+            available=False,
+            has_strong_signal=False,
+        )
+
     for text, href in all_links:
         try:
             parsed = urllib.parse.urlparse(href)
@@ -321,20 +411,41 @@ def evaluate_url_heuristics(
         for sig_type, sig_host, is_strong, pts, anom, evid in host_threats:
             add_signal(sig_type, sig_host, is_strong, pts, anom, evid)
 
+        # Determine effective destination host (accounting for tracker redirects)
+        dest_host = host
+        if parsed.query:
+            query_params = urllib.parse.parse_qs(parsed.query)
+            for param in ["url", "redirect", "redirect_url", "dest", "destination", "target", "next", "q"]:
+                if param in query_params:
+                    for target_val in query_params[param]:
+                        if target_val.startswith(("http://", "https://")):
+                            try:
+                                thost = urllib.parse.urlparse(target_val).netloc.lower().split(":")[0]
+                                if thost:
+                                    dest_host = thost
+                                    break
+                            except Exception:
+                                pass
+                    if dest_host != host:
+                        break
+
+        dest_root = _get_root_domain(dest_host)
+
         # Check anchor-text vs real href host mismatch (§Fix 2)
         if text:
             apparent_host = _extract_apparent_domain_from_anchor(text)
             if apparent_host:
                 apparent_root = _get_root_domain(apparent_host)
-                if apparent_root != root_domain:
+                if apparent_root != root_domain and apparent_root != dest_root:
                     sender_root = _get_root_domain(sender_domain) if sender_domain else ""
                     is_sender_text = bool(sender_root and apparent_root == sender_root)
                     is_sender_target = bool(sender_root and root_domain == sender_root)
 
                     # 2b. If text domain equals sender's From domain AND dmarc=pass:
                     # different target is a weak signal only (tracking/shortener like c.gle)
-                    # ALSO if target is the sender's own domain AND dmarc=pass (e.g. roadmap.sh linking to updates.roadmap.sh)
-                    if dmarc_pass and (is_sender_text or is_sender_target):
+                    # ALSO if target is the sender's own domain AND dmarc=pass, UNLESS the anchor text displays a major brand domain
+                    is_brand_text = apparent_root in ALL_LEGIT_DOMAINS or any(b in apparent_root for b in COMMON_BRANDS)
+                    if dmarc_pass and (is_sender_text or (is_sender_target and not is_brand_text)):
                         add_signal(
                             "anchor_tracker",
                             host,
@@ -350,10 +461,43 @@ def evaluate_url_heuristics(
                             "anchor_mismatch",
                             host,
                             True,
-                            0.70,
+                            0.80,
                             f"Anchor text '{text}' points to '{host}'",
                             f"[STRONG] Link text shows '{text}' but points to '{host}'",
                         )
+            else:
+                # Check if anchor text explicitly masquerades as a brand login/account/portal
+                text_clean = text.lower().strip()
+                words = text_clean.split()
+                if len(words) <= 6 and len(text_clean) <= 45:
+                    for brand, legit_domains in LEGIT_BRAND_DOMAINS.items():
+                        is_brand_cta = (
+                            text_clean == brand
+                            or re.search(rf"\b(log\s*in|sign\s*in|verify|update|access|my|connect)\b.*\b{re.escape(brand)}\b", text_clean) is not None
+                            or re.search(rf"\b{re.escape(brand)}\b.*\b(login|signin|account|portal|support|team|security|billing|verification)\b", text_clean) is not None
+                        )
+                        if is_brand_cta:
+                            sender_root = _get_root_domain(sender_domain) if sender_domain else ""
+                            target_is_brand = (
+                                root_domain in legit_domains
+                                or any(root_domain.endswith("." + ld) for ld in legit_domains)
+                                or dest_root in legit_domains
+                                or any(dest_root.endswith("." + ld) for ld in legit_domains)
+                            )
+                            sender_is_brand = (sender_root in legit_domains or any(sender_root.endswith("." + ld) for ld in legit_domains))
+                            if not target_is_brand and not sender_is_brand:
+                                is_strong_mismatch = not dmarc_pass
+                                if is_strong_mismatch:
+                                    has_anchor_mismatch = True
+                                add_signal(
+                                    "anchor_brand_mismatch",
+                                    host,
+                                    is_strong_mismatch,
+                                    0.70 if is_strong_mismatch else 0.20,
+                                    f"Anchor text mentions brand '{brand}' but points to unrelated host '{host}'",
+                                    f"[{'STRONG' if is_strong_mismatch else 'WEAK'}] Link text mentions brand '{brand}' but points to unrelated target domain '{root_domain}'",
+                                )
+                                break
 
         # Check redirect / forwarding parameters
         if parsed.query:

@@ -90,13 +90,41 @@ def fuse_phishing_layers(
 
     final_score = weighted_score
 
-    # 3. Strong layer floor (§Change 3)
-    # Applies ONLY when the layer has at least one STRONG signal
-    strong_hits = [
-        l.name
-        for l in available_layers
-        if l.score >= settings.strong_layer_threshold and getattr(l, "has_strong_signal", False)
-    ]
+    # 3. Strong layer floor & Corroboration Rule (§Change 3, §Tuning)
+    # Applies when a layer has a STRONG signal.
+    # Corroboration rule for BERT: a high BERT score alone is not enough when authentication
+    # and links are clean, but is enough when authentication is missing or another layer scores above a minimum.
+    auth_layer = next((l for l in available_layers if l.name == "sender_auth"), None)
+    auth_available = auth_layer is not None
+    url_layer = next((l for l in available_layers if l.name == "url_heuristics"), None)
+    has_strong_url = bool(url_layer and getattr(url_layer, "has_strong_signal", False))
+    other_layer_has_score = any(
+        l.score >= settings.fraud_suspicious_threshold for l in available_layers if l.name != "bert_phishing"
+    )
+
+    sender_clean = sender_email.split("<")[-1].rstrip(">").strip().lower()
+    is_trusted_contact = bool(sender_clean and sender_clean in known_contacts)
+
+    # Auth is considered dirty only when auth was evaluated and was not clean
+    auth_is_dirty = auth_available and not is_auth_clean
+    # Missing auth is suspicious on external senders, but not on trusted/self-sent mail with clean links
+    missing_auth_suspicious = (not auth_available) and not (is_trusted_contact and url_layer and url_layer.score == 0.0)
+
+    bert_is_corroborated = (
+        missing_auth_suspicious
+        or auth_is_dirty
+        or other_layer_has_score
+        or has_strong_url
+    )
+
+    strong_hits = []
+    for l in available_layers:
+        if l.name == "bert_phishing":
+            if l.score >= settings.strong_layer_threshold and bert_is_corroborated:
+                strong_hits.append(l.name)
+        elif l.score >= settings.strong_layer_threshold and getattr(l, "has_strong_signal", False):
+            strong_hits.append(l.name)
+
     if strong_hits:
         final_score = max(final_score, settings.strong_layer_floor)
 
@@ -104,12 +132,10 @@ def fuse_phishing_layers(
     if has_threat_intel_hit:
         final_score = max(final_score, 0.90)
 
-    # 5. Clean sender_auth + weak URL evidence safeguard (§Change 4)
-    # If sender_auth is fully clean (all pass, aligned) and the only URL evidence is weak,
-    # final score must stay below the "Suspicious" threshold.
-    url_layer = next((l for l in available_layers if l.name == "url_heuristics"), None)
-    has_strong_url = bool(url_layer and getattr(url_layer, "has_strong_signal", False))
-    if is_auth_clean and not has_strong_url:
+    # 5. Clean sender_auth + clean URL safeguard (§Change 4, §Corroboration)
+    # If sender_auth is fully clean (all pass, aligned) and no strong URL signal exists,
+    # and no threat intel hit, final score must stay below the "Suspicious" threshold.
+    if is_auth_clean and not has_strong_url and not has_threat_intel_hit:
         final_score = min(final_score, max(0.0, settings.fraud_suspicious_threshold - 0.05))
 
     # 6. Trust signal discount (§Change 6)
@@ -135,7 +161,7 @@ def fuse_phishing_layers(
             trust_discount_applied = True
             final_score = max(0.0, final_score - settings.trust_score_reduction)
             all_raw_evidence.append(
-                f"Sender address ({clean_sender_email}) is in user's sent contacts with passing SPF/DKIM and no mismatches (-{int(settings.trust_score_reduction * 100)}% trust discount)"
+                f"Sender address ({clean_sender_email}) is in user's sent contacts (-{int(settings.trust_score_reduction * 100)}% trust discount)"
             )
 
     final_score = min(max(final_score, 0.0), 1.0)
