@@ -123,6 +123,43 @@ A local, self-hosted agentic email assistant for Gmail that prioritizes emails, 
 
 ---
 
+## Stage 5 — Claim-Level Explanation Verification (Core Contribution)
+- **Unified Grounded Explanation Synthesis (`app/explain/generator.py`)**:
+  - Synthesizes priority triage and threat analysis into a single coherent explanation.
+  - Generates a permanent system-built **Verdict Line** (priority label + fraud band from DB fields) that is never removed or altered.
+  - Encloses system evidence items (`[1]..[N]`) in strict XML delimiters, prompting Gemini to ground all statements strictly in the facts.
+  - Deterministic fallback for demo mode without API keys.
+- **Atomic Claim Decomposition (`app/explain/generator.py`)**:
+  - Gemini decomposes the explanation into at most 6 self-contained factual claims (JSON array).
+  - Enforces entity clarity: no ambiguous pronouns ('it', 'they'), no raw `[N]` references; entities (sender, URL/domain, header, attachment) are explicitly named.
+  - Cached in SQLite `LLMCache` keyed by `(gmail_id, 'claim_decomposition', prompt_version)`.
+- **Local MiniCheck NLI Verifier (`app/verify/minicheck_verifier.py`)**:
+  - Uses `lytang/MiniCheck-RoBERTa-Large` directly from the local HuggingFace cache with `local_files_only=True` and `HF_HUB_OFFLINE=1`.
+  - Auto-detects device (runs fast on CPU with zero remote downloads).
+  - Two labels only: `supported` (confidence $\ge$ threshold) and `unsupported` (hallucinations, ungrounded claims, contradictions).
+  - Efficient batch scoring: evaluates each claim against the full evidence document and individual evidence items to identify the best supporting evidence index `[N]`.
+  - Graceful degradation: if model weights are missing, the UI displays "Verifier not available" and the unverified explanation is withheld.
+- **Filtering & Secure Presentation**:
+  - Unsupported claims are filtered out of the user-facing narrative by default.
+  - Stored in `verified_claims` and displayed struck-through under a collapsible **Removed Unsupported Claims** toggle.
+  - Supported claims are linked to their evidence item pills.
+  - Strict Jinja autoescape security: text is escaped before citation tokens `[N]` are wrapped in styled badges. Completely immune to `<script>` injection.
+- **Worker & API Integration**:
+  - Resumable 3rd pass in `app/priority/worker.py` running on unread non-newsletter emails and flagged emails.
+  - On-demand verification endpoint `POST /api/emails/{id}/verify`.
+- **Phase 2 Evaluation Benchmark (`evaluation/`)**:
+  - `evaluation/data/phase2_trap_cases.json`: 30 benchmark cases (15 dev, 15 test) with ~50% trap cases (sender past behavior traps, bank name traps, auth header traps, urgent wire traps, malware traps, URL destination traps).
+  - `evaluation/phase2_verification.py`:
+    - **Part 1 (Deterministic Benchmark)**: Tunes threshold on Dev (0.100) and reports held-out Test set:
+      - Unsupported Claim Detection Recall: **100.0%**
+      - Unsupported Claim Detection Precision: **71.4%**
+      - Verifier F1 Score: **83.3%**
+      - Overall Accuracy: **85.0%**
+      - Ungrounded-claim rate reduction: **37.5% $\rightarrow$ 0.0%** (100% relative reduction, by construction).
+    - **Part 2 (End-to-End LLM Generation)**: Prompts Gemini across the 15 test cases, decomposes into atomic claims, verifies each claim, and exports 90 generated claims to `evaluation/data/phase2_generated_claims_to_label.json` for human annotation.
+
+---
+
 ## Quickstart
 
 ### Option A: Using `uv` (Recommended)

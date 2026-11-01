@@ -60,6 +60,12 @@ class EmailDetailResponse(EmailListResponse):
     attachment_meta: list[dict[str, Any]] = Field(default_factory=list)
     fraud_evidence: list[str] = Field(default_factory=list)
     fraud_layers: list[dict[str, Any]] = Field(default_factory=list)
+    verdict_line: str | None = None
+    explanation: str | None = None
+    claims: list[str] = Field(default_factory=list)
+    verified_claims: list[dict[str, Any]] = Field(default_factory=list)
+    verified_explanation: str | None = None
+    verification_version: str | None = None
 
 
 class OpenEmailResponse(BaseModel):

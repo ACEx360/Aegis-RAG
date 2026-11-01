@@ -5,12 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "accelerate>=1.15.0",
     "dotenv>=0.9.9",
     "fastapi>=0.162.0",
     "google-api-python-client>=2.201.0",
     "google-auth-oauthlib>=1.5.0",
     "google-genai>=2.33.0",
     "jinja2>=3.1.6",
+    "minicheck",
     "numpy>=2.5.4",
     "pydantic-settings>=2.16.1",
     "python-dotenv>=1.2.4",
@@ -27,9 +29,11 @@ explicit = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
+minicheck = { git = "https://github.com/Liyan06/MiniCheck.git", rev = "b58b9fa69acbd1015ec970fa65dd752413a053d2" }
 
 [dependency-groups]
 dev = [
+    "pytest>=8.0.0",
     "ruff>=0.17.3",
 ]
 
@@ -44,4 +48,9 @@ ignore = [
     "SIM102", # Nested if statements
     "S110",   # try-except-pass
     "S112",   # try-except-continue
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]

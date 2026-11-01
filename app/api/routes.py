@@ -30,6 +30,7 @@ from app.priority.worker import start_priority_analysis
 from app.rag.history import DEMO_SENT_CONTACTS, index_history_emails
 from app.settings import settings
 from app.state import app_state
+from app.verify.minicheck_verifier import explain_and_verify_email
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,12 @@ def _row_to_dict(row: Email) -> dict[str, Any]:
         "fraud_version": row.fraud_version,
         "fraud_evidence": json.loads(row.fraud_evidence or "[]"),
         "fraud_layers": json.loads(row.fraud_layers or "[]"),
+        "verdict_line": getattr(row, "verdict_line", None),
+        "explanation": getattr(row, "explanation", None),
+        "claims": json.loads(getattr(row, "claims", "[]") or "[]"),
+        "verified_claims": json.loads(getattr(row, "verified_claims", "[]") or "[]"),
+        "verified_explanation": getattr(row, "verified_explanation", None),
+        "verification_version": getattr(row, "verification_version", None),
     }
 
 
@@ -146,6 +153,23 @@ def mark_email_opened(email_id: int, db: Session = Depends(get_db)) -> OpenEmail
         opened_at=row.opened_at or dt.datetime.now(dt.UTC),
         message="Email marked as opened.",
     )
+
+
+@router.post(
+    "/emails/{email_id}/verify",
+    tags=["Emails"],
+    summary="Verify email claims on demand",
+    description="Runs explanation synthesis, atomic claim decomposition, and MiniCheck verification for a specific email.",
+    response_model=EmailDetailResponse,
+)
+def verify_email(email_id: int, db: Session = Depends(get_db)) -> EmailDetailResponse:
+    row = db.query(Email).filter(Email.id == email_id).first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email not found")
+
+    explain_and_verify_email(row, db=db, force_refresh=True)
+    db.refresh(row)
+    return EmailDetailResponse.model_validate(_row_to_dict(row))
 
 
 # ---------------------------------------------------------------------------

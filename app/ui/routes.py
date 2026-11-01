@@ -16,13 +16,15 @@ from app.db.session import get_db
 from app.ingest.gmail_client import gmail_client, is_oauth_in_progress
 from app.settings import settings
 from app.state import app_state
-from app.ui.helpers import get_email_styling, is_newsletter_email, parse_json_safely
+from app.ui.helpers import get_email_styling, highlight_citations, is_newsletter_email, parse_json_safely
+from app.verify.minicheck_verifier import get_verifier
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Ensure Jinja2 autoescaping is strictly enforced (§14 & Change 3)
 templates.env.autoescape = True
+templates.env.filters["highlight_citations"] = highlight_citations
 
 router = APIRouter()
 
@@ -294,6 +296,9 @@ def get_email_panel_readonly(
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
+        "verified_claims": parse_json_safely(getattr(email_row, "verified_claims", "[]")),
+        "verifier_available": get_verifier().is_available(),
+        "minicheck_device": get_verifier().device,
     }
     return templates.TemplateResponse(request=request, name="email_panel.html", context=context)
 
@@ -329,6 +334,9 @@ def open_and_get_email_panel(
         "style": get_email_styling(email_row),
         "counts": counts,
         "nli_model": settings.nli_model,
+        "verified_claims": parse_json_safely(getattr(email_row, "verified_claims", "[]")),
+        "verifier_available": get_verifier().is_available(),
+        "minicheck_device": get_verifier().device,
     }
     return templates.TemplateResponse(request=request, name="email_panel.html", context=context)
 

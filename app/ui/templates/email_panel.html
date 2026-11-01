@@ -149,19 +149,149 @@
     </div>
   </div>
 
-  <!-- Inner Tab 2: Verified Explanation (Placeholder for Stage 5) -->
-  <div data-inner-content="explanation" class="hidden">
-    <div class="p-6 rounded-xl bg-slate-900/50 border border-slate-800/80 text-center space-y-3">
-      <div class="inline-flex p-3 rounded-full bg-indigo-950/60 border border-indigo-800/60 text-indigo-400">
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
+  <!-- Inner Tab 2: Verified Explanation (§8, §16, Stage 5) -->
+  <div data-inner-content="explanation" class="hidden space-y-4">
+    <!-- Verifier Status Bar -->
+    <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 text-xs">
+      <div>
+        <h4 class="font-semibold text-slate-200 flex items-center gap-2">
+          <span>Claim-Level Explanation Verification</span>
+          {% if verifier_available %}
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+              Active ({{ minicheck_device|upper }})
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-950 text-amber-300 border border-amber-800/60">
+              Unavailable
+            </span>
+          {% endif %}
+        </h4>
+        <p class="text-[11px] text-slate-400">Atomic claims verified against system-built evidence using MiniCheck (lytang/MiniCheck-RoBERTa-Large).</p>
       </div>
-      <h4 class="text-sm font-semibold text-slate-200">Claim-Level Explanation Verification Coming in Stage 5</h4>
-      <p class="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-        In Stage 5, the generated explanation will be broken into atomic factual claims by Gemini and each claim will be verified against retrieved evidence snippets using an NLI cross-encoder model (<span class="font-mono text-indigo-300">{{ nli_model }}</span>). Unsupported or contradicted claims will be visibly flagged.
-      </p>
+      <div class="text-right">
+        <span class="text-[10px] text-slate-500 block">Model Engine</span>
+        <span class="text-[11px] font-mono text-indigo-300">MiniCheck-RoBERTa</span>
+      </div>
     </div>
+
+    {% if not verifier_available %}
+      <!-- Verifier Unavailable Alert: Unverified explanation is NOT shown as verified (§8, §16) -->
+      <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-800/60 text-xs text-amber-300 space-y-1.5">
+        <div class="font-semibold flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-amber-400 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>Verifier Not Available</span>
+        </div>
+        <p class="text-slate-300 leading-relaxed">
+          The MiniCheck NLI verifier is currently not loaded. For security and grounding integrity, the unverified explanation is withheld and cannot be presented as verified.
+        </p>
+      </div>
+    {% else %}
+      <!-- System Verdict Line (Always preserved, not verified or removed per spec) -->
+      {% if email.verdict_line %}
+        <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-800/60 flex items-center gap-2 text-xs">
+          <span class="w-2 h-2 rounded-full bg-indigo-400 flex-none"></span>
+          <span class="font-semibold text-indigo-200">{{ email.verdict_line }}</span>
+        </div>
+      {% endif %}
+
+      {% if email.verified_explanation %}
+        <!-- User-Facing Verified Explanation Narrative -->
+        <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
+          <div class="flex items-center justify-between text-[10px] text-slate-400 uppercase font-semibold">
+            <span>Verified Narrative</span>
+            <span class="text-emerald-400 font-mono">Grounding Verified</span>
+          </div>
+          <div class="text-slate-200 text-xs leading-relaxed font-medium whitespace-pre-wrap">
+            {{ email.verified_explanation|highlight_citations }}
+          </div>
+        </div>
+
+        <!-- Verified Claims Breakdown -->
+        {% set supported_claims = verified_claims|selectattr('label', 'equalto', 'supported')|list %}
+        {% set unsupported_claims = verified_claims|selectattr('label', 'equalto', 'unsupported')|list %}
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span class="font-semibold text-[10px] uppercase tracking-wider">
+              Atomic Claims Breakdown ({{ supported_claims|length }}/{{ verified_claims|length }} Verified)
+            </span>
+          </div>
+
+          <div class="space-y-2">
+            {% for c in supported_claims %}
+              <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/70 space-y-1.5 text-xs">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="font-medium text-slate-200 leading-snug">
+                    {{ c.claim }}
+                  </div>
+                  <div class="flex items-center gap-1.5 flex-none">
+                    {% if c.evidence_index %}
+                      <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-800/60">
+                        Item [{{ c.evidence_index }}]
+                      </span>
+                    {% endif %}
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+                      Supported ({{ (c.confidence * 100)|int }}%)
+                    </span>
+                  </div>
+                </div>
+                {% if c.evidence_text %}
+                  <div class="text-[11px] font-mono text-slate-400 bg-slate-950/60 p-2 rounded border border-slate-800/40">
+                    <span class="text-indigo-400 font-semibold">Evidence:</span> {{ c.evidence_text }}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <!-- Removed Unsupported Claims Accordion -->
+          {% if unsupported_claims|length > 0 %}
+            <details class="group mt-3 border border-rose-900/40 rounded-xl bg-rose-950/20 p-3">
+              <summary class="cursor-pointer text-xs font-semibold text-rose-300 hover:text-rose-200 flex items-center justify-between select-none">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-rose-400 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Removed Unsupported Claims ({{ unsupported_claims|length }})
+                </span>
+                <span class="text-[10px] text-rose-400/80 group-open:hidden">(expand to view)</span>
+                <span class="text-[10px] text-rose-400/80 hidden group-open:inline">(collapse)</span>
+              </summary>
+              <div class="mt-2.5 space-y-2 pt-2.5 border-t border-rose-900/30 text-xs">
+                <p class="text-[11px] text-slate-400">
+                  These claims were filtered out because they could not be substantiated by retrieved evidence:
+                </p>
+                {% for uc in unsupported_claims %}
+                  <div class="p-2.5 rounded-lg bg-slate-950/80 border border-rose-900/40 flex items-center justify-between gap-3">
+                    <span class="line-through text-slate-500 font-mono text-[11px]">{{ uc.claim }}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-950 text-rose-300 border border-rose-800/60 flex-none">
+                      Unsupported ({{ (uc.confidence * 100)|int }}%)
+                    </span>
+                  </div>
+                {% endfor %}
+              </div>
+            </details>
+          {% endif %}
+        </div>
+      {% else %}
+        <!-- Email Not Yet Verified -->
+        <div class="p-6 rounded-xl bg-slate-900/40 border border-slate-800/60 text-center space-y-3">
+          <p class="text-xs text-slate-400">
+            This email has not been verified yet. Unread non-newsletter mail is verified automatically in the background, or you can verify it on demand:
+          </p>
+          <button
+            type="button"
+            hx-post="/api/emails/{{ email.id }}/verify"
+            hx-target="#panel-{{ email.id }}"
+            hx-swap="outerHTML"
+            class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-colors">
+            Verify Claims Now
+          </button>
+        </div>
+      {% endif %}
+    {% endif %}
   </div>
 
   <!-- Inner Tab 3: Detection Layers (§Stage 4) -->

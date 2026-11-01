@@ -25,6 +25,8 @@ from app.priority.classifier import classify_email_priority
 from app.rag.history import index_history_emails
 from app.settings import PROJECT_ROOT, settings
 from app.state import app_state
+from app.ui.helpers import is_newsletter_email
+from app.verify.minicheck_verifier import explain_and_verify_email
 
 logger = logging.getLogger(__name__)
 
@@ -120,15 +122,18 @@ def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
             .all()
         )
 
-        # Filter for items needing priority or phishing scoring (§Change 7: skips already scored at current version)
-        unscored = [
-            e
-            for e in candidates
-            if e.priority_score is None
-            or e.fraud_score is None
-            or e.fraud_version != settings.fraud_version
-            or force_phishing
-        ]
+        # Filter for items needing priority, phishing, or verification (§Change 7 & Stage 5)
+        def _needs_analysis(e: Email) -> bool:
+            if e.priority_score is None:
+                return True
+            if e.fraud_score is None or e.fraud_version != settings.fraud_version or force_phishing:
+                return True
+            # Stage 5 auto-verify: unread non-newsletter or flagged emails not yet verified at current version
+            is_nl = is_newsletter_email(e.raw_headers, e.labels)
+            is_flagged = e.fraud_score is not None and e.fraud_score >= settings.fraud_threshold
+            return bool(((not is_nl) or is_flagged) and e.verification_version != settings.verification_version)
+
+        unscored = [e for e in candidates if _needs_analysis(e)]
         total_items = len(unscored)
 
         app_state.analysis_total = total_items
@@ -159,6 +164,18 @@ def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
                     or force_phishing
                 ):
                     detect_phishing_for_email(email, db=db, force_refresh=force_phishing)
+
+                # 3. Explanation and Claim Verification (Stage 5)
+                # Runs only on unread non-newsletter emails and flagged emails; skips already verified
+                is_nl = is_newsletter_email(email.raw_headers, email.labels)
+                is_flagged = email.fraud_score is not None and email.fraud_score >= settings.fraud_threshold
+                if (
+                    ((not is_nl) or is_flagged)
+                    and email.priority_score is not None
+                    and email.fraud_score is not None
+                    and (email.verification_version != settings.verification_version or force_phishing)
+                ):
+                    explain_and_verify_email(email, db=db, force_refresh=force_phishing)
 
                 processed += 1
             except Exception as exc:

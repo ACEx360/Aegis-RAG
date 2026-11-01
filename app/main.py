@@ -22,10 +22,12 @@ from app.db.session import init_db
 from app.ingest.gmail_client import gmail_client, is_oauth_in_progress
 from app.settings import settings
 from app.state import app_state
+from app.ui.helpers import highlight_citations
 from app.ui.routes import router as ui_router
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "ui" / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates.env.filters["highlight_citations"] = highlight_citations
 
 
 @asynccontextmanager

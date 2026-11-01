@@ -1,0 +1,438 @@
+{
+  "part1_synthetic_benchmark": {
+    "dev_split": {
+      "num_cases": 15,
+      "num_claims": 38,
+      "tuned_threshold": 0.1,
+      "dev_f1_unsupported": 0.9375
+    },
+    "test_split": {
+      "num_cases": 15,
+      "num_claims": 40,
+      "threshold_used": 0.1,
+      "metrics_unsupported_detection": {
+        "tp": 15,
+        "fp": 6,
+        "fn": 0,
+        "tn": 19,
+        "total": 40,
+        "precision": 0.7143,
+        "recall": 1.0,
+        "f1": 0.8333,
+        "accuracy": 0.85
+      },
+      "ungrounded_rate_before": 0.375,
+      "ungrounded_rate_after": 0.0,
+      "relative_reduction_pct": 100.0,
+      "claims_evaluated": [
+        {
+          "case_id": "case-test-01",
+          "category": "payroll_direct_deposit_fraud",
+          "claim": "The sender domain paychex-secure-portal.com is not an authorized domain for genuine payroll services.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.345,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-01",
+          "category": "payroll_direct_deposit_fraud",
+          "claim": "The link destination redirects to an unauthorized Russian (.ru) domain rather than the genuine portal.",
+          "ground_truth": "supported",
+          "predicted": "unsupported",
+          "confidence": 0.06,
+          "best_evidence_index": null,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-01",
+          "category": "payroll_direct_deposit_fraud",
+          "claim": "The user has successfully received past direct deposits through paychex-secure-portal.com for over three years.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.01,
+          "best_evidence_index": null,
+          "trap_type": "history_hallucination"
+        },
+        {
+          "case_id": "case-test-02",
+          "category": "cloud_infrastructure_alert",
+          "claim": "The email notification was scored as High priority due to production database impact.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.969,
+          "best_evidence_index": 3,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-02",
+          "category": "cloud_infrastructure_alert",
+          "claim": "The infrastructure monitoring sender passed SPF, DKIM, and DMARC authentication checks.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.694,
+          "best_evidence_index": 2,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-02",
+          "category": "cloud_infrastructure_alert",
+          "claim": "The database outage was caused by an employee installing unauthorized gaming software.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.004,
+          "best_evidence_index": null,
+          "trap_type": "history_hallucination"
+        },
+        {
+          "case_id": "case-test-03",
+          "category": "bank_phishing_brand_trap",
+          "claim": "The sender failed the SPF authentication check and uses a recently registered domain.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.132,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-03",
+          "category": "bank_phishing_brand_trap",
+          "claim": "The email is an official security alert sent directly by Bank of America fraud operations.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.014,
+          "best_evidence_index": null,
+          "trap_type": "institution_hallucination"
+        },
+        {
+          "case_id": "case-test-03",
+          "category": "bank_phishing_brand_trap",
+          "claim": "The email embedded link points to a raw IP address credential harvesting form.",
+          "ground_truth": "supported",
+          "predicted": "unsupported",
+          "confidence": 0.054,
+          "best_evidence_index": null,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-04",
+          "category": "executive_wire_urgent",
+          "claim": "The email attempts executive impersonation requesting urgent release of escrow funds.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.566,
+          "best_evidence_index": 3,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-04",
+          "category": "executive_wire_urgent",
+          "claim": "The sender domain was registered 24 hours ago and failed corporate DMARC verification.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.433,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-04",
+          "category": "executive_wire_urgent",
+          "claim": "The Chief Executive Officer personally authorized this supplier settlement during yesterday's all-hands meeting.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.006,
+          "best_evidence_index": null,
+          "trap_type": "history_hallucination"
+        },
+        {
+          "case_id": "case-test-05",
+          "category": "vendor_contract_renewal",
+          "claim": "Sender renewals@jetbrains.com is an authenticated contact matching past renewal history.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.83,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-05",
+          "category": "vendor_contract_renewal",
+          "claim": "The attachment Renewal_Quote_2026.pdf was flagged by antivirus software as a Trojan downloader.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.029,
+          "best_evidence_index": null,
+          "trap_type": "attachment_malware"
+        },
+        {
+          "case_id": "case-test-06",
+          "category": "promotional_sale",
+          "claim": "The email was classified as Low priority because it contains bulk promotional marketing.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.237,
+          "best_evidence_index": 3,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-06",
+          "category": "promotional_sale",
+          "claim": "The email requires urgent security remediation because the user credit profile was compromised.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.011,
+          "best_evidence_index": null,
+          "trap_type": "urgency_wire_fraud"
+        },
+        {
+          "case_id": "case-test-07",
+          "category": "auth_header_trap",
+          "claim": "The authentication header indicates that the sender failed SPF validation.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.693,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-07",
+          "category": "auth_header_trap",
+          "claim": "The email passed both SPF and DKIM authentication with full cryptographic verification.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.049,
+          "best_evidence_index": null,
+          "trap_type": "auth_inversion"
+        },
+        {
+          "case_id": "case-test-07",
+          "category": "auth_header_trap",
+          "claim": "The embedded URLs in the email mimic genuine delivery tracking to harvest credit card data.",
+          "ground_truth": "supported",
+          "predicted": "unsupported",
+          "confidence": 0.034,
+          "best_evidence_index": null,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-08",
+          "category": "team_standup_notes",
+          "claim": "developer@mycompany.com sent an internal meeting summary covering the frontend sync.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.244,
+          "best_evidence_index": 2,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-08",
+          "category": "team_standup_notes",
+          "claim": "The email sender instructed team members to immediately purchase prepaid debit cards.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.027,
+          "best_evidence_index": null,
+          "trap_type": "urgency_wire_fraud"
+        },
+        {
+          "case_id": "case-test-09",
+          "category": "paypal_lookalike_phishing",
+          "claim": "The sender domain utilizes character substitution paypa1 to deceive users into believing it is genuine PayPal.",
+          "ground_truth": "supported",
+          "predicted": "unsupported",
+          "confidence": 0.023,
+          "best_evidence_index": null,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-09",
+          "category": "paypal_lookalike_phishing",
+          "claim": "The sender address failed both SPF and DKIM authentication checks.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.665,
+          "best_evidence_index": 2,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-09",
+          "category": "paypal_lookalike_phishing",
+          "claim": "The email was sent from genuine PayPal European Headquarters with verified DKIM signatures.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.05,
+          "best_evidence_index": null,
+          "trap_type": "institution_hallucination"
+        },
+        {
+          "case_id": "case-test-10",
+          "category": "internal_password_policy",
+          "claim": "The email is an informational policy update originating from the authenticated internal IT helpdesk.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.32,
+          "best_evidence_index": 3,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-10",
+          "category": "internal_password_policy",
+          "claim": "The IT helpdesk warned that non-compliant user accounts would be permanently deleted in 10 minutes.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.01,
+          "best_evidence_index": null,
+          "trap_type": "urgency_wire_fraud"
+        },
+        {
+          "case_id": "case-test-11",
+          "category": "tax_scam_cra_hmrc",
+          "claim": "The sender domain does not belong to the genuine government .gov.uk domain hierarchy.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.601,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-11",
+          "category": "tax_scam_cra_hmrc",
+          "claim": "The sender domain failed SPF authentication with a hard fail result.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.481,
+          "best_evidence_index": 2,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-11",
+          "category": "tax_scam_cra_hmrc",
+          "claim": "The email is an authentic tax assessment verified by official Her Majesty's Revenue and Customs inspectors.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.02,
+          "best_evidence_index": null,
+          "trap_type": "institution_hallucination"
+        },
+        {
+          "case_id": "case-test-12",
+          "category": "quarterly_financial_results",
+          "claim": "The email provides details regarding a Q3 earnings conference call scheduled for Thursday at 4 PM ET.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.973,
+          "best_evidence_index": 2,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-12",
+          "category": "quarterly_financial_results",
+          "claim": "The links inside the email direct investors to a malware site hosting banking Trojans.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.018,
+          "best_evidence_index": null,
+          "trap_type": "url_mismatch_hallucination"
+        },
+        {
+          "case_id": "case-test-13",
+          "category": "fake_antivirus_subscription",
+          "claim": "The email uses a fake invoice lure to induce the recipient to call a fraudulent support phone number.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.396,
+          "best_evidence_index": 3,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-13",
+          "category": "fake_antivirus_subscription",
+          "claim": "The sender domain tech-invoice-confirmations.com is a newly registered generic domain with no prior user history.",
+          "ground_truth": "supported",
+          "predicted": "unsupported",
+          "confidence": 0.097,
+          "best_evidence_index": null,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-13",
+          "category": "fake_antivirus_subscription",
+          "claim": "The recipient has paid this recurring Geek Squad subscription annually since 2018.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.005,
+          "best_evidence_index": null,
+          "trap_type": "history_hallucination"
+        },
+        {
+          "case_id": "case-test-14",
+          "category": "software_release_announcement",
+          "claim": "The email originates from announce@python.org with valid cryptographic DKIM verification.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.46,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-14",
+          "category": "software_release_announcement",
+          "claim": "The email announces the testing release of Python 3.14.0b2.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.972,
+          "best_evidence_index": 2,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-14",
+          "category": "software_release_announcement",
+          "claim": "The python.org release announcement instructed users to transfer $50 licensing fees via Western Union.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.005,
+          "best_evidence_index": null,
+          "trap_type": "urgency_wire_fraud"
+        },
+        {
+          "case_id": "case-test-15",
+          "category": "dropbox_file_share_phishing",
+          "claim": "The sender domain dr0pbox-file-share.com is a lookalike domain substituting the numeral '0' for the letter 'o'.",
+          "ground_truth": "supported",
+          "predicted": "supported",
+          "confidence": 0.358,
+          "best_evidence_index": 1,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-15",
+          "category": "dropbox_file_share_phishing",
+          "claim": "The link destination directs users to an unauthenticated external IP address rather than Dropbox.",
+          "ground_truth": "supported",
+          "predicted": "unsupported",
+          "confidence": 0.02,
+          "best_evidence_index": null,
+          "trap_type": null
+        },
+        {
+          "case_id": "case-test-15",
+          "category": "dropbox_file_share_phishing",
+          "claim": "The shared spreadsheet was verified as authentic and clean by the corporate security firewall.",
+          "ground_truth": "unsupported",
+          "predicted": "unsupported",
+          "confidence": 0.029,
+          "best_evidence_index": null,
+          "trap_type": "attachment_malware"
+        }
+      ],
+      "note": "In Part 1, the ungrounded-claim rate reduction is by construction due to fixed synthetic claims."
+    }
+  },
+  "part2_llm_end_to_end": {
+    "status": "pending_annotations",
+    "file_path": "C:\\Users\\alpes\\Downloads\\Aegis\\evaluation\\data\\phase2_generated_claims_to_label.json",
+    "num_claims_to_label": 90,
+    "message": "Wrote 90 generated claims to phase2_generated_claims_to_label.json with blank ground_truth fields. Skipping Part 2 metric calculation until ground_truth fields are annotated with 'supported' or 'unsupported'."
+  }
+}

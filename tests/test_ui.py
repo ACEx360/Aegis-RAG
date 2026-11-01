@@ -135,13 +135,13 @@ def test_panel_post_marks_opened_and_updates_state(client: TestClient, db_sessio
 
 
 def test_placeholder_notices_shown_not_simulated_data(client: TestClient):
-    """Verified Explanation shows placeholder for Stage 5; Detection Layers shows live providers (§8, §9)."""
+    """Verified Explanation shows claim verification panel (§8, §9, Stage 5); Detection Layers shows live providers."""
     app_state.demo_mode = True
     client.post("/api/emails/sync")
 
     resp = client.get("/ui/emails/1/panel")
     assert resp.status_code == 200
-    assert "Claim-Level Explanation Verification Coming in Stage 5" in resp.text
+    assert "Claim-Level Explanation Verification" in resp.text
     assert "Sender Authentication" in resp.text
     assert "URL & Domain Heuristics" in resp.text
 

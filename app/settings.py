@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     priority_high_threshold: float = 70.0
     priority_low_threshold: float = 30.0
 
+    # --- Stage 5: Explanation & Claim Verification (§8, §16) ------------
+    minicheck_model_name: str = "roberta-large"
+    minicheck_threshold: float = 0.5
+    explanation_prompt_version: str = "v1"
+    claim_decomposition_prompt_version: str = "v1"
+    verification_version: str = "v1"
+    max_claims_per_email: int = 6
+
     # --- Derived paths (resolved relative to project root, §14) ----------
     @property
     def credentials_path(self) -> Path:

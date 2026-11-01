@@ -92,6 +92,14 @@ class Email(Base):
     fraud_evidence: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[str] of numbered facts
     fraud_version: Mapped[str | None] = mapped_column(String, default=None)
 
+    # Stage 5 Verification fields (§8, §16)
+    verdict_line: Mapped[str | None] = mapped_column(String, default=None)
+    explanation: Mapped[str | None] = mapped_column(Text, default=None)
+    claims: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[str] of atomic claims
+    verified_claims: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[dict] of verified claims
+    verified_explanation: Mapped[str | None] = mapped_column(Text, default=None)
+    verification_version: Mapped[str | None] = mapped_column(String, default=None)
+
 
 class LLMCache(Base):
     """Cache for Gemini outputs, keyed by email + task + prompt version.

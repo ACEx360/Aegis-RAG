@@ -3,9 +3,31 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
+import markupsafe
+
 from app.settings import settings
+
+
+def highlight_citations(text: str | None) -> markupsafe.Markup:
+    """Safely escape text and wrap [N] evidence citation tokens in styled pills.
+
+    Security guarantee (§Stage 5, requirement 4):
+    Escapes all input text with markupsafe.escape() FIRST before wrapping strictly
+    known [digits] patterns with markup. Any HTML tags or <script> in the claim/text
+    remain completely sanitized and cannot execute.
+    """
+    if not text:
+        return markupsafe.Markup("")
+    escaped = markupsafe.escape(text)
+    highlighted = re.sub(
+        r"\[(\d+)\]",
+        r'<span class="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/60">[\1]</span>',
+        str(escaped),
+    )
+    return markupsafe.Markup(highlighted)
 
 
 def parse_json_safely(val: Any) -> list:

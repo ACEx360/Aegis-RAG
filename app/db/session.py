@@ -83,6 +83,18 @@ def init_db() -> None:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_evidence TEXT DEFAULT '[]'")
                 if "fraud_version" not in existing_cols:
                     conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN fraud_version VARCHAR")
+                if "verdict_line" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN verdict_line VARCHAR")
+                if "explanation" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN explanation TEXT")
+                if "claims" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN claims TEXT DEFAULT '[]'")
+                if "verified_claims" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN verified_claims TEXT DEFAULT '[]'")
+                if "verified_explanation" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN verified_explanation TEXT")
+                if "verification_version" not in existing_cols:
+                    conn.exec_driver_sql("ALTER TABLE emails ADD COLUMN verification_version VARCHAR")
                 conn.commit()
         except Exception:
             pass
