@@ -124,7 +124,8 @@ def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
 
         # Filter for items needing priority, phishing, or verification (§Change 7 & Stage 5)
         def _needs_analysis(e: Email) -> bool:
-            if e.priority_score is None:
+            is_prio_fallback = bool(e.priority_reason and "AI scoring unavailable" in e.priority_reason)
+            if e.priority_score is None or is_prio_fallback:
                 return True
             if e.fraud_score is None or e.fraud_version != settings.fraud_version or force_phishing:
                 return True
@@ -153,9 +154,10 @@ def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
             app_state.analysis_message = f"Analyzing {i + 1}/{total_items}"
 
             try:
-                # 1. Priority scoring if unrated
-                if email.priority_score is None:
-                    classify_email_priority(email, db=db, force_refresh=False)
+                # 1. Priority scoring if unrated or previous run was fallback
+                is_prio_fallback = bool(email.priority_reason and "AI scoring unavailable" in email.priority_reason)
+                if email.priority_score is None or is_prio_fallback:
+                    classify_email_priority(email, db=db, force_refresh=is_prio_fallback)
 
                 # 2. Phishing scoring (§Pass 4a)
                 if (

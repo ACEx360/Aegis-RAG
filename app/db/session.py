@@ -109,7 +109,7 @@ def reprocess_stored_emails(db: Session) -> int:
     import json
 
     from app.db.models import Email
-    from app.ingest.normalizer import derive_body_text_from_html, extract_all_links
+    from app.ingest.normalizer import extract_all_links, resolve_body_text
 
     emails = db.query(Email).all()
     updated_count = 0
@@ -130,17 +130,15 @@ def reprocess_stored_emails(db: Session) -> int:
                 email.snippet = unescaped_snip
                 changed = True
 
-        # 2. Derive body_text if empty and body_html exists
-        if not email.body_text or not email.body_text.strip():
-            derived_text = ""
-            if email.body_html:
-                derived_text = derive_body_text_from_html(email.body_html)
-            if not derived_text or not derived_text.strip():
-                # Fallback to snippet (§BUG 2)
-                derived_text = email.snippet or ""
-            if derived_text and derived_text != email.body_text:
-                email.body_text = derived_text
-                changed = True
+        # 2. Resolve body_text with clean_plain_text and HTML fallback
+        resolved_body = resolve_body_text(
+            plain_text=email.body_text or "",
+            body_html=email.body_html or "",
+            snippet=email.snippet or "",
+        )
+        if resolved_body and resolved_body != email.body_text:
+            email.body_text = resolved_body
+            changed = True
 
         # 3. Extract links from HTML and plain text
         extracted_links = extract_all_links(

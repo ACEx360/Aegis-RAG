@@ -6,6 +6,12 @@ FastAPI's get_db dependency for isolated and fast tests.
 
 from __future__ import annotations
 
+import os
+
+os.environ["TESTING"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 from collections.abc import Generator
 
 import pytest

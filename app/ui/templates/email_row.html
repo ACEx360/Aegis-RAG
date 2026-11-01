@@ -35,7 +35,8 @@
         </span>
         {% endif %}
 
-        <!-- Priority Badge -->
+        <!-- Priority Badge (hidden on Likely phishing) -->
+        {% if not style.is_fraud %}
         {% if style.is_high_priority %}
         <span class="px-2 py-0.5 rounded-full font-semibold bg-amber-950 text-amber-300 border border-amber-800/80">
           High Priority
@@ -52,6 +53,7 @@
         <span class="px-2 py-0.5 rounded-full font-medium bg-slate-800 text-slate-400 border border-slate-700/60">
           Not analyzed yet
         </span>
+        {% endif %}
         {% endif %}
 
         <!-- Newsletter Badge -->

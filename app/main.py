@@ -33,6 +33,11 @@ templates.env.filters["highlight_citations"] = highlight_citations
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle hook: initialize tables and auto-seed demo data if empty."""
+    import os
+    if os.getenv("TESTING") == "1":
+        yield
+        return
+
     init_db()
 
     # Restore interrupted analysis state if previous run terminated unexpectedly

@@ -78,7 +78,8 @@ def classify_email_priority(
     Updates email.priority_score, email.priority_label, email.priority_reason,
     and email.priority_evidence in place.
     """
-    if not force_refresh and email.priority_score is not None:
+    is_fallback = bool(email.priority_reason and "AI scoring unavailable" in email.priority_reason)
+    if not force_refresh and email.priority_score is not None and not is_fallback:
         return {
             "priority_score": email.priority_score,
             "priority_label": email.priority_label,

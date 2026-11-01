@@ -52,6 +52,7 @@ CASES_FILE = DATA_DIR / "phase2_trap_cases.json"
 TO_LABEL_FILE = DATA_DIR / "phase2_generated_claims_to_label.json"
 LABELING_SHEET_FILE = DATA_DIR / "phase2_labeling_sheet.json"
 RESULTS_FILE = RESULTS_DIR / "phase2_results.json"
+SWEEP_FILE = RESULTS_DIR / "phase2_sweep.json"
 
 
 def load_dataset() -> list[dict[str, Any]]:
@@ -311,8 +312,12 @@ def run_part2(
         if gt in ("supported", "unsupported"):
             labeled_rows.append({
                 "id": row_id,
+                "case_id": item.get("case_id"),
                 "claim": item["claim"],
                 "predicted_label": item["predicted_label"],
+                "confidence": item.get("confidence", 0.0),
+                "best_evidence_index": item.get("best_evidence_index"),
+                "best_evidence_text": item.get("best_evidence_text", ""),
                 "ground_truth": gt,
             })
 
@@ -334,6 +339,15 @@ def run_part2(
 
         rel_red = (rate_before - rate_after) / rate_before * 100.0 if rate_before > 0 else 0.0
 
+        false_negatives = [
+            r for r in labeled_rows
+            if r["ground_truth"] == "unsupported" and r["predicted_label"] == "supported"
+        ]
+        false_positives = [
+            r for r in labeled_rows
+            if r["ground_truth"] == "supported" and r["predicted_label"] == "unsupported"
+        ]
+
         return {
             "status": "evaluated",
             "num_claims_labeled": labeled_count,
@@ -342,6 +356,9 @@ def run_part2(
             "ungrounded_rate_before": round(rate_before, 4),
             "ungrounded_rate_after": round(rate_after, 4),
             "relative_reduction_pct": round(rel_red, 2),
+            "false_negatives": false_negatives,
+            "false_positives": false_positives,
+            "labeled_rows": labeled_rows,
         }
 
     return {
@@ -356,8 +373,79 @@ def run_part2(
     }
 
 
+def run_sensitivity_sweep(labeled_records: list[dict]) -> dict:
+    """Run exploratory post-hoc sensitivity sweep over thresholds [0.1 .. 0.9].
+
+    Label: 'exploratory, post-hoc, not tuned'.
+    Does not modify default thresholds, models, or ground truth labels.
+    """
+    thresholds = [round(t * 0.1, 1) for t in range(1, 10)]
+    sweep_rows = []
+
+    y_true = [r["ground_truth"] for r in labeled_records]
+    unsupported_before = sum(1 for yt in y_true if yt == "unsupported")
+    rate_before = unsupported_before / len(y_true) if len(y_true) > 0 else 0.0
+
+    print("\n" + "=" * 90)
+    print("        PART 2 SENSITIVITY SWEEP (exploratory, post-hoc, not tuned)")
+    print("=" * 90)
+    print(
+        f"{'Threshold':>9} | {'Precision':>9} | {'Recall':>8} | {'F1':>8} | "
+        f"{'Rate After':>10} | {'Rel Red (%)':>11} | {'Supp Removed':>12}"
+    )
+    print("-" * 90)
+
+    for thresh in thresholds:
+        y_pred = ["supported" if r.get("confidence", 0.0) >= thresh else "unsupported" for r in labeled_records]
+        m = calculate_metrics(y_true, y_pred, positive_label="unsupported")
+
+        kept = [i for i, yp in enumerate(y_pred) if yp == "supported"]
+        unsupported_after = sum(1 for i in kept if y_true[i] == "unsupported")
+        rate_after = unsupported_after / len(kept) if len(kept) > 0 else 0.0
+        rel_red = (rate_before - rate_after) / rate_before * 100.0 if rate_before > 0 else 0.0
+
+        supported_removed = sum(1 for yt, yp in zip(y_true, y_pred) if yt == "supported" and yp == "unsupported")
+
+        row = {
+            "threshold": thresh,
+            "precision": round(m["precision"], 4),
+            "recall": round(m["recall"], 4),
+            "f1": round(m["f1"], 4),
+            "ungrounded_rate_after": round(rate_after, 4),
+            "relative_reduction_pct": round(rel_red, 2),
+            "supported_claims_removed": supported_removed,
+        }
+        sweep_rows.append(row)
+
+        print(
+            f"{thresh:9.1f} | {m['precision'] * 100:8.1f}% | {m['recall'] * 100:7.1f}% | {m['f1'] * 100:7.1f}% | "
+            f"{rate_after * 100:9.1f}% | {rel_red:10.1f}% | {supported_removed:12d}"
+        )
+
+    print("=" * 90)
+
+    sweep_result = {
+        "label": "exploratory, post-hoc, not tuned",
+        "description": "Part 2 threshold sensitivity sweep over generated and annotated claims",
+        "num_claims_evaluated": len(labeled_records),
+        "ungrounded_rate_before": round(rate_before, 4),
+        "sweep": sweep_rows,
+    }
+
+    with open(SWEEP_FILE, "w", encoding="utf-8") as f:
+        json.dump(sweep_result, f, indent=2)
+
+    logger.info("Sensitivity sweep saved to %s", SWEEP_FILE)
+    return sweep_result
+
+
 def main() -> None:
     """Execute complete Phase 2 evaluation and output summary table."""
+    import argparse
+    parser = argparse.ArgumentParser(description="Aegis Phase 2 Verification Evaluation")
+    parser.add_argument("--sweep", action="store_true", help="Run sensitivity threshold sweep over Part 2 claims")
+    args = parser.parse_args()
+
     logger.info("Starting Aegis Phase 2 Claim Verification Evaluation...")
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -430,6 +518,33 @@ def main() -> None:
         print(f"  Ungrounded Claim Rate (Before):   {part2_res['ungrounded_rate_before'] * 100:.1f}%")
         print(f"  Ungrounded Claim Rate (After):    {part2_res['ungrounded_rate_after'] * 100:.1f}%")
         print(f"  Relative Reduction:               {part2_res['relative_reduction_pct']:.1f}%")
+
+        # (a) False Negatives: claims labeled unsupported that the verifier kept
+        print("\n  (a) Part 2 False Negatives (Labeled Unsupported, Verifier Kept as Supported):")
+        fns = part2_res.get("false_negatives", [])
+        if fns:
+            for idx, fn in enumerate(fns, 1):
+                ev_matched = fn.get("best_evidence_text") or "N/A"
+                print(f"    {idx}. ID:         {fn['id']} ({fn.get('case_id')})")
+                print(f"       Claim:      \"{fn['claim']}\"")
+                print(f"       Confidence: {fn['confidence']:.3f} (threshold: {best_thresh:.3f})")
+                print(f"       Evidence:   {ev_matched}")
+        else:
+            print("    None.")
+
+        # (b) False Positives: claims labeled supported that the verifier removed
+        print("\n  (b) Part 2 False Positives (Labeled Supported, Verifier Removed as Unsupported):")
+        fps = part2_res.get("false_positives", [])
+        if fps:
+            for idx, fp in enumerate(fps, 1):
+                print(f"    {idx}. ID:         {fp['id']} ({fp.get('case_id')})")
+                print(f"       Claim:      \"{fp['claim']}\"")
+                print(f"       Confidence: {fp['confidence']:.3f} (threshold: {best_thresh:.3f})")
+        else:
+            print("    None.")
+
+        if args.sweep:
+            run_sensitivity_sweep(part2_res.get("labeled_rows", []))
     else:
         print(f"  Status: {part2_res['message']}")
 

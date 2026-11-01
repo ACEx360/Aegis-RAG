@@ -355,3 +355,37 @@ def test_normalizer_fallback_image_alt_and_snippet():
     assert schema_image_link.links[0]["text"] == "(image link)"
 
 
+def test_normalizer_code_fence_plain_part_uses_html_fallback():
+    """Regression test: when text/plain is literally a markdown code fence like ```html,
+    the normalizer must strip the code fence and fall back to HTML-derived text.
+    """
+    html_content = "<html><body><h1>Naukri Campus Hiring Updates</h1><p>Find new job openings and top salary packages.</p></body></html>"
+    raw = {
+        "id": "msg_code_fence_promo",
+        "snippet": "Naukri Campus Hiring Updates...",
+        "payload": {
+            "mimeType": "multipart/alternative",
+            "headers": [
+                {"name": "Subject", "value": "Job Recommendations"},
+                {"name": "From", "value": "Naukri Campus <campus@naukri.com>"},
+            ],
+            "parts": [
+                {
+                    "mimeType": "text/plain",
+                    "body": {"data": _b64_url("```html\n")},
+                },
+                {
+                    "mimeType": "text/html",
+                    "body": {"data": _b64_url(html_content)},
+                },
+            ],
+        },
+    }
+
+    schema = normalize_message(raw)
+    assert "```html" not in schema.body_text
+    assert "Naukri Campus Hiring Updates" in schema.body_text
+    assert "Find new job openings" in schema.body_text
+
+
+

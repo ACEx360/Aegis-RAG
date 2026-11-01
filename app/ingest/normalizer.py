@@ -225,6 +225,48 @@ def derive_body_text_from_html(body_html: str) -> str:
     return re.sub(r'\s+', ' ', clean).strip()
 
 
+def clean_plain_text(text: str) -> str:
+    """Strip markdown code-fence artifacts (lines that are only ``` or ```html, etc.)."""
+    if not text:
+        return ""
+    lines = text.splitlines()
+    cleaned_lines = []
+    for line in lines:
+        stripped = line.strip()
+        # Drop lines that are purely code fence markers (``` or ```html or ```markdown etc.)
+        if re.match(r"^```[a-zA-Z0-9_-]*$", stripped):
+            continue
+        cleaned_lines.append(line)
+    return "\n".join(cleaned_lines).strip()
+
+
+def resolve_body_text(plain_text: str, body_html: str = "", snippet: str = "") -> str:
+    """Resolve final body text from plain part, HTML, and snippet.
+
+    Strips code-fence artifacts. If the cleaned plain text is shorter than ~80
+    characters, or HTML-derived text is more than 3x longer, uses HTML-derived text.
+    Falls back to snippet if still empty.
+    """
+    cleaned_plain = clean_plain_text(plain_text)
+    html_derived = clean_plain_text(derive_body_text_from_html(body_html)) if body_html else ""
+
+    if html_derived.strip():
+        # If HTML has more content and either cleaned plain is < 80 chars or HTML is >3x longer
+        if len(html_derived.strip()) > len(cleaned_plain) and (
+            len(cleaned_plain) < 80 or len(html_derived.strip()) > 3 * max(len(cleaned_plain), 1)
+        ):
+            chosen = html_derived.strip()
+        else:
+            chosen = cleaned_plain
+    else:
+        chosen = cleaned_plain
+
+    if not chosen and snippet:
+        chosen = snippet.strip()
+
+    return chosen
+
+
 def normalize_message(raw: dict) -> EmailSchema:
     """Convert a Gmail API message resource into an EmailSchema.
 
@@ -255,15 +297,9 @@ def normalize_message(raw: dict) -> EmailSchema:
     labels: list[str] = raw.get("labelIds", [])
     is_read = "UNREAD" not in labels
 
-    body_text, body_html = _extract_body(payload)
-    if not body_text or not body_text.strip():
-        if body_html:
-            body_text = derive_body_text_from_html(body_html)
-
+    raw_plain, body_html = _extract_body(payload)
     snippet = html.unescape(raw.get("snippet", ""))
-    if not body_text or not body_text.strip():
-        # Fallback to snippet if body text is still empty (§BUG 2)
-        body_text = snippet
+    body_text = resolve_body_text(plain_text=raw_plain, body_html=body_html, snippet=snippet)
 
     links = extract_all_links(body_html=body_html, body_text=body_text)
     attachments = _extract_attachments(payload)

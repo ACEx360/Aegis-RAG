@@ -256,7 +256,9 @@ def _sync_demo(db: Session) -> SyncResponse:
 
     index_history_emails(db, is_demo=True)
     db.commit()
-    start_priority_analysis(is_demo=True)
+    import os
+    if os.getenv("TESTING") != "1":
+        start_priority_analysis(is_demo=True)
     total = db.query(Email).filter(Email.is_demo == True).count()
     return SyncResponse(
         mode="demo",

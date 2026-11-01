@@ -55,6 +55,7 @@
       <!-- Analysis Status & Scores -->
       <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
         <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Triage Indicators</div>
+        {% if not style.is_fraud %}
         <div class="flex items-center gap-2">
           <span class="text-slate-400">Priority Score:</span>
           {% if email.priority_score is not none %}
@@ -65,6 +66,7 @@
             <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-400">Not analyzed yet</span>
           {% endif %}
         </div>
+        {% endif %}
         <div class="flex items-center gap-2">
           <span class="text-slate-400">Fraud Confidence:</span>
           {% if email.fraud_score is not none %}
@@ -87,7 +89,7 @@
     </div>
 
     <!-- Priority Justification & System-Verified Evidence (§Stage 3) -->
-    {% if email.priority_reason %}
+    {% if email.priority_reason and not style.is_fraud %}
       <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-xs space-y-2">
         <div class="flex items-center justify-between">
           <span class="text-amber-400 font-semibold text-[10px] uppercase tracking-wider flex items-center gap-1.5">

@@ -1,0 +1,89 @@
+{
+  "label": "exploratory, post-hoc, not tuned",
+  "description": "Part 2 threshold sensitivity sweep over generated and annotated claims",
+  "num_claims_evaluated": 90,
+  "ungrounded_rate_before": 0.2778,
+  "sweep": [
+    {
+      "threshold": 0.1,
+      "precision": 0.6,
+      "recall": 0.6,
+      "f1": 0.6,
+      "ungrounded_rate_after": 0.1538,
+      "relative_reduction_pct": 44.62,
+      "supported_claims_removed": 10
+    },
+    {
+      "threshold": 0.2,
+      "precision": 0.5938,
+      "recall": 0.76,
+      "f1": 0.6667,
+      "ungrounded_rate_after": 0.1034,
+      "relative_reduction_pct": 62.76,
+      "supported_claims_removed": 13
+    },
+    {
+      "threshold": 0.3,
+      "precision": 0.5588,
+      "recall": 0.76,
+      "f1": 0.6441,
+      "ungrounded_rate_after": 0.1071,
+      "relative_reduction_pct": 61.43,
+      "supported_claims_removed": 15
+    },
+    {
+      "threshold": 0.4,
+      "precision": 0.5385,
+      "recall": 0.84,
+      "f1": 0.6562,
+      "ungrounded_rate_after": 0.0784,
+      "relative_reduction_pct": 71.76,
+      "supported_claims_removed": 18
+    },
+    {
+      "threshold": 0.5,
+      "precision": 0.5111,
+      "recall": 0.92,
+      "f1": 0.6571,
+      "ungrounded_rate_after": 0.0444,
+      "relative_reduction_pct": 84.0,
+      "supported_claims_removed": 22
+    },
+    {
+      "threshold": 0.6,
+      "precision": 0.4808,
+      "recall": 1.0,
+      "f1": 0.6494,
+      "ungrounded_rate_after": 0.0,
+      "relative_reduction_pct": 100.0,
+      "supported_claims_removed": 27
+    },
+    {
+      "threshold": 0.7,
+      "precision": 0.431,
+      "recall": 1.0,
+      "f1": 0.6024,
+      "ungrounded_rate_after": 0.0,
+      "relative_reduction_pct": 100.0,
+      "supported_claims_removed": 33
+    },
+    {
+      "threshold": 0.8,
+      "precision": 0.4098,
+      "recall": 1.0,
+      "f1": 0.5814,
+      "ungrounded_rate_after": 0.0,
+      "relative_reduction_pct": 100.0,
+      "supported_claims_removed": 36
+    },
+    {
+      "threshold": 0.9,
+      "precision": 0.3623,
+      "recall": 1.0,
+      "f1": 0.5319,
+      "ungrounded_rate_after": 0.0,
+      "relative_reduction_pct": 100.0,
+      "supported_claims_removed": 44
+    }
+  ]
+}

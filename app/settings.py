@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     max_body_chars_for_rag: int = 500
 
     # --- Thresholds & Phishing (§7, §16, Stage 4) -----------------------
-    fraud_version: str = "v2"
+    fraud_version: str = "v3"
     fraud_threshold: float = 0.5
     fraud_suspicious_threshold: float = 0.3
     strong_layer_threshold: float = 0.8
@@ -77,9 +77,9 @@ class Settings(BaseSettings):
     # --- Stage 5: Explanation & Claim Verification (§8, §16) ------------
     minicheck_model_name: str = "roberta-large"
     minicheck_threshold: float = 0.5
-    explanation_prompt_version: str = "v1"
-    claim_decomposition_prompt_version: str = "v1"
-    verification_version: str = "v1"
+    explanation_prompt_version: str = "v2"
+    claim_decomposition_prompt_version: str = "v2"
+    verification_version: str = "v2"
     max_claims_per_email: int = 6
 
     # --- Derived paths (resolved relative to project root, §14) ----------
