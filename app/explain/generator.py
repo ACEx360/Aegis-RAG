@@ -42,16 +42,20 @@ def _parse_json_list(val: Any) -> list[str]:
 def build_verdict_line(email: Email) -> str:
     """Build system verdict line from DB fields.
 
-    Per spec: The user-facing explanation always starts with this system verdict.
+    Per spec: The user-facing explanation starts with this system verdict.
     It is NOT verified or removed. Only factual claims are verified.
     """
-    priority_label = email.priority_label or "Normal"
-    priority_score_str = f"{int(email.priority_score)}/100" if email.priority_score is not None else "N/A"
+    if email.priority_score is None:
+        priority_part = "Priority: not analyzed"
+    else:
+        priority_part = f"{email.priority_label or 'Normal'} Priority ({int(email.priority_score)}/100)"
 
-    fraud_label = email.fraud_label or "Low risk"
-    fraud_pct_str = f"{int(email.fraud_score * 100)}%" if email.fraud_score is not None else "N/A"
+    if email.fraud_score is None:
+        fraud_part = "Threat Band: not analyzed"
+    else:
+        fraud_part = f"Threat Band: {email.fraud_label or 'Low risk'} ({int(email.fraud_score * 100)}%)"
 
-    return f"Verdict: {priority_label} Priority ({priority_score_str}) | Threat Band: {fraud_label} ({fraud_pct_str})"
+    return f"Verdict: {priority_part} | {fraud_part}"
 
 
 def assemble_evidence_set(email: Email) -> list[str]:

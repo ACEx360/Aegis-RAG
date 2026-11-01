@@ -77,7 +77,7 @@ class MiniCheckVerifier:
         except Exception as exc:
             msg = (
                 f"MiniCheck model files missing in local cache for '{HF_MODEL_REPO}'. "
-                f"To download manually, run: uv run python -m huggingface_hub.cli.download {HF_MODEL_REPO}"
+                f"To download manually, run: uv run hf download {HF_MODEL_REPO}"
             )
             logger.warning("%s (Detail: %s)", msg, exc)
             self._load_error = msg
@@ -253,9 +253,9 @@ def explain_and_verify_email(
         supported_texts.append(f"{c['claim']}{citation}")
 
     if supported_texts:
-        verified_narrative = f"{verdict_line}\n\n" + " ".join(supported_texts)
+        verified_narrative = " ".join(supported_texts)
     else:
-        verified_narrative = f"{verdict_line}\n\n(No additional factual claims were verified against system evidence.)"
+        verified_narrative = "(No additional factual claims were verified against system evidence.)"
 
     email.verified_explanation = verified_narrative
     db.commit()

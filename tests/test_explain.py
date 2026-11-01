@@ -27,6 +27,12 @@ def test_build_verdict_line():
     assert "Likely phishing (88%)" in verdict
     assert verdict.startswith("Verdict:")
 
+    # When priority_score is None
+    email_unrated = Email(priority_score=None, fraud_score=None)
+    verdict_unrated = build_verdict_line(email_unrated)
+    assert "Priority: not analyzed" in verdict_unrated
+    assert "Threat Band: not analyzed" in verdict_unrated
+
 
 def test_assemble_evidence_set():
     """Verify evidence merging, bracket cleanup, deduplication, and sequential numbering."""

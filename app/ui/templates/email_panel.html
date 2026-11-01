@@ -373,32 +373,66 @@
         {% endif %}
       </div>
 
-      <!-- 3. BERT Phishing Classifier (Stage 4b) -->
-      <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-2 opacity-80">
+      <!-- 3. BERT Phishing Classifier -->
+      {% set bert_layer = (fraud_layers|selectattr('name', 'equalto', 'bert_phishing')|list)[0] if fraud_layers else None %}
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
         <div class="flex items-center justify-between">
-          <span class="font-semibold text-xs text-slate-300 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-            BERT Classifier (Fine-tuned)
+          <span class="font-semibold text-xs text-slate-200 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full {% if bert_layer and bert_layer.available %}{% if bert_layer.score >= 0.5 %}bg-rose-400{% else %}bg-emerald-400{% endif %}{% else %}bg-slate-600{% endif %}"></span>
+            BERT Semantic Classifier
           </span>
-          <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
-            Pass 4b
-          </span>
+          {% if bert_layer and bert_layer.available %}
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold {% if bert_layer.score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% elif bert_layer.score >= 0.3 %}bg-amber-950 text-amber-300 border border-amber-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
+              Score: {{ (bert_layer.score * 100)|int }}%
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
+              Not available
+            </span>
+          {% endif %}
         </div>
-        <p class="text-[11px] text-slate-400 leading-relaxed">Local transformer model (<span class="font-mono text-slate-300">ealvaradob/bert-finetuned-phishing</span>). Operational in Pass 4b.</p>
+        <p class="text-[11px] text-slate-300 leading-relaxed">{{ bert_layer.reason if bert_layer else 'BERT model not evaluated yet.' }}</p>
+        {% if bert_layer and bert_layer.evidence %}
+          <div class="pt-1.5 border-t border-slate-800/40">
+            <span class="text-[9px] text-slate-400 uppercase font-semibold block mb-1">Layer Evidence:</span>
+            <ul class="space-y-0.5 text-[10px] font-mono text-slate-400">
+              {% for ev in bert_layer.evidence %}
+                <li>&bull; {{ ev }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
       </div>
 
-      <!-- 4. Gemini Social Engineering Check (Stage 4b) -->
-      <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-2 opacity-80">
+      <!-- 4. Gemini Social Engineering Check -->
+      {% set gemini_layer = (fraud_layers|selectattr('name', 'equalto', 'gemini_social')|list)[0] if fraud_layers else None %}
+      <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2">
         <div class="flex items-center justify-between">
-          <span class="font-semibold text-xs text-slate-300 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+          <span class="font-semibold text-xs text-slate-200 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full {% if gemini_layer and gemini_layer.available %}{% if gemini_layer.score >= 0.5 %}bg-rose-400{% else %}bg-emerald-400{% endif %}{% else %}bg-slate-600{% endif %}"></span>
             Gemini Social Engineering
           </span>
-          <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
-            Pass 4b
-          </span>
+          {% if gemini_layer and gemini_layer.available %}
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold {% if gemini_layer.score >= 0.5 %}bg-rose-950 text-rose-300 border border-rose-800/60{% elif gemini_layer.score >= 0.3 %}bg-amber-950 text-amber-300 border border-amber-800/60{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800/60{% endif %}">
+              Score: {{ (gemini_layer.score * 100)|int }}%
+            </span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/60">
+              {{ 'Skipped (low risk)' if gemini_layer and 'conserve' in gemini_layer.reason|lower else 'Not available' }}
+            </span>
+          {% endif %}
         </div>
-        <p class="text-[11px] text-slate-400 leading-relaxed">LLM structured urgency, authority impersonation, and payment harvesting analysis. Operational in Pass 4b.</p>
+        <p class="text-[11px] text-slate-300 leading-relaxed">{{ gemini_layer.reason if gemini_layer else 'Gemini social check not evaluated yet.' }}</p>
+        {% if gemini_layer and gemini_layer.evidence %}
+          <div class="pt-1.5 border-t border-slate-800/40">
+            <span class="text-[9px] text-slate-400 uppercase font-semibold block mb-1">Layer Evidence:</span>
+            <ul class="space-y-0.5 text-[10px] font-mono text-slate-400">
+              {% for ev in gemini_layer.evidence %}
+                <li>&bull; {{ ev }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

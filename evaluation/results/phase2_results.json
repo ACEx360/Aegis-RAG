@@ -431,8 +431,8 @@
   },
   "part2_llm_end_to_end": {
     "status": "pending_annotations",
-    "file_path": "C:\\Users\\alpes\\Downloads\\Aegis\\evaluation\\data\\phase2_generated_claims_to_label.json",
+    "file_path": "C:\\Users\\alpes\\Downloads\\Aegis\\evaluation\\data\\phase2_labeling_sheet.json",
     "num_claims_to_label": 90,
-    "message": "Wrote 90 generated claims to phase2_generated_claims_to_label.json with blank ground_truth fields. Skipping Part 2 metric calculation until ground_truth fields are annotated with 'supported' or 'unsupported'."
+    "message": "Found 90 generated claims in phase2_labeling_sheet.json with blank ground_truth fields. No claims have been labeled yet (0 annotated). Fill 'ground_truth' with 'supported' or 'unsupported' in phase2_labeling_sheet.json to view Part 2 metrics."
   }
 }

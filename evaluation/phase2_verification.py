@@ -50,6 +50,7 @@ DATA_DIR = PROJECT_ROOT / "evaluation" / "data"
 RESULTS_DIR = PROJECT_ROOT / "evaluation" / "results"
 CASES_FILE = DATA_DIR / "phase2_trap_cases.json"
 TO_LABEL_FILE = DATA_DIR / "phase2_generated_claims_to_label.json"
+LABELING_SHEET_FILE = DATA_DIR / "phase2_labeling_sheet.json"
 RESULTS_FILE = RESULTS_DIR / "phase2_results.json"
 
 
@@ -205,105 +206,152 @@ def run_part2(
     from app.db.models import Email
     from app.db.session import SessionLocal
 
-    # Check if labeled file already exists with human annotations
+    # 1. Load generated claims if already cached
+    generated_records = []
     if TO_LABEL_FILE.exists():
         try:
             with open(TO_LABEL_FILE, encoding="utf-8") as f:
-                existing_data = json.load(f)
-            labeled_count = sum(1 for item in existing_data if item.get("ground_truth") in ("supported", "unsupported"))
-            total_items = len(existing_data)
-
-            if total_items > 0 and labeled_count == total_items:
-                logger.info("Found fully labeled claims file (%d/%d annotated). Computing Part 2 metrics...", labeled_count, total_items)
-                y_true = [item["ground_truth"] for item in existing_data]
-                y_pred = [item["predicted_label"] for item in existing_data]
-                m = calculate_metrics(y_true, y_pred, positive_label="unsupported")
-
-                unsupported_before = sum(1 for yt in y_true if yt == "unsupported")
-                rate_before = unsupported_before / len(y_true) if len(y_true) > 0 else 0.0
-
-                kept = [i for i, yp in enumerate(y_pred) if yp == "supported"]
-                unsupported_after = sum(1 for i in kept if y_true[i] == "unsupported")
-                rate_after = unsupported_after / len(kept) if len(kept) > 0 else 0.0
-
-                rel_red = (rate_before - rate_after) / rate_before * 100.0 if rate_before > 0 else 0.0
-
-                return {
-                    "status": "evaluated",
-                    "num_generated_claims": total_items,
-                    "metrics": m,
-                    "ungrounded_rate_before": round(rate_before, 4),
-                    "ungrounded_rate_after": round(rate_after, 4),
-                    "relative_reduction_pct": round(rel_red, 2),
-                }
+                generated_records = json.load(f)
         except Exception as exc:
-            logger.debug("Could not parse existing annotation file: %s", exc)
+            logger.debug("Could not parse existing claims file: %s", exc)
 
-    # If no annotations, generate claims using Gemini and write template for human review
-    logger.info("Generating LLM explanations and claims for the 15 test cases...")
-    generated_records = []
-    db = SessionLocal()
+    # If not generated yet, generate them and write to both files
+    if not generated_records:
+        logger.info("Generating LLM explanations and claims for the 15 test cases...")
+        db = SessionLocal()
+        try:
+            for idx, c in enumerate(test_cases):
+                logger.info("Part 2: Processing test case %d/15 (%s)...", idx + 1, c["id"])
+                ctx = c["email_context"]
+                evidence = c["evidence"]
 
-    try:
-        for idx, c in enumerate(test_cases):
-            logger.info("Part 2: Processing test case %d/15 (%s)...", idx + 1, c["id"])
-            ctx = c["email_context"]
-            evidence = c["evidence"]
+                email_obj = Email(
+                    gmail_id=f"eval-{c['id']}",
+                    subject=ctx.get("subject", ""),
+                    sender=ctx.get("sender", ""),
+                    body_text=ctx.get("snippet", ""),
+                    priority_score=75.0,
+                    priority_label="Normal",
+                    priority_evidence=json.dumps(evidence),
+                    fraud_score=0.1,
+                    fraud_label="Low risk",
+                    fraud_evidence=json.dumps(evidence),
+                )
 
-            # Create dummy Email object for pipeline
-            email_obj = Email(
-                gmail_id=f"eval-{c['id']}",
-                subject=ctx.get("subject", ""),
-                sender=ctx.get("sender", ""),
-                body_text=ctx.get("snippet", ""),
-                priority_score=75.0,
-                priority_label="Normal",
-                priority_evidence=json.dumps(evidence),
-                fraud_score=0.1,
-                fraud_label="Low risk",
-                fraud_evidence=json.dumps(evidence),
-            )
+                try:
+                    explanation = generate_combined_explanation(email_obj, db=db)
+                    claims = decompose_claims(explanation, email_obj, db=db)
+                except Exception as exc:
+                    logger.warning("Generation failed for case %s: %s", c["id"], exc)
+                    claims = []
 
-            try:
-                explanation = generate_combined_explanation(email_obj, db=db)
-                claims = decompose_claims(explanation, email_obj, db=db)
-            except Exception as exc:
-                logger.warning("Generation failed for case %s: %s", c["id"], exc)
-                claims = []
+                if not claims:
+                    claims = [item["claim"] for item in c.get("claims", [])[:3]]
 
-            if not claims:
-                # Fallback if Gemini unavailable: extract sentences from context
-                claims = [item["claim"] for item in c.get("claims", [])[:3]]
+                for c_idx, claim in enumerate(claims):
+                    res = verifier.verify_single_claim(claim, evidence, threshold=threshold)
+                    generated_records.append({
+                        "id": f"{c['id']}-claim-{c_idx + 1:02d}",
+                        "case_id": c["id"],
+                        "subject": ctx.get("subject"),
+                        "claim": claim,
+                        "predicted_label": res["label"],
+                        "confidence": res["confidence"],
+                        "best_evidence_index": res["evidence_index"],
+                        "best_evidence_text": res["evidence_text"],
+                        "ground_truth": "",
+                    })
+        finally:
+            db.close()
 
-            for claim in claims:
-                res = verifier.verify_single_claim(claim, evidence, threshold=threshold)
-                generated_records.append({
-                    "case_id": c["id"],
-                    "subject": ctx.get("subject"),
-                    "claim": claim,
-                    "predicted_label": res["label"],
-                    "confidence": res["confidence"],
-                    "best_evidence_index": res["evidence_index"],
-                    "best_evidence_text": res["evidence_text"],
-                    "ground_truth": "",  # Blank for human reviewer to fill
-                })
-    finally:
-        db.close()
+        # Save generated claims file
+        TO_LABEL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(TO_LABEL_FILE, "w", encoding="utf-8") as f:
+            json.dump(generated_records, f, indent=2)
 
-    # Save to JSON
-    TO_LABEL_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(TO_LABEL_FILE, "w", encoding="utf-8") as f:
-        json.dump(generated_records, f, indent=2)
+        # Save clean labeling sheet without hints/scores
+        cases_map = {c["id"]: c for c in test_cases}
+        labeling_sheet = []
+        for item in generated_records:
+            case = cases_map.get(item["case_id"], {})
+            labeling_sheet.append({
+                "id": item["id"],
+                "case_id": item["case_id"],
+                "email_context": case.get("email_context", {}),
+                "evidence": case.get("evidence", []),
+                "claim": item["claim"],
+                "ground_truth": "",
+            })
+        with open(LABELING_SHEET_FILE, "w", encoding="utf-8") as f:
+            json.dump(labeling_sheet, f, indent=2)
 
-    logger.info("Exported %d generated claims to %s with blank ground_truth fields.", len(generated_records), TO_LABEL_FILE)
+    # 2. Collect annotations from phase2_labeling_sheet.json and phase2_generated_claims_to_label.json
+    annotations: dict[str, str] = {}
+    if LABELING_SHEET_FILE.exists():
+        try:
+            with open(LABELING_SHEET_FILE, encoding="utf-8") as f:
+                sheet_data = json.load(f)
+            for item in sheet_data:
+                gt = str(item.get("ground_truth", "")).strip().lower()
+                if gt in ("supported", "unsupported"):
+                    annotations[item.get("id")] = gt
+        except Exception as exc:
+            logger.debug("Could not read labeling sheet: %s", exc)
+
+    # Also check TO_LABEL_FILE in case annotations were entered there directly
+    for item in generated_records:
+        gt = str(item.get("ground_truth", "")).strip().lower()
+        if gt in ("supported", "unsupported") and item.get("id") not in annotations:
+            annotations[item.get("id")] = gt
+
+    labeled_rows = []
+    for item in generated_records:
+        row_id = item.get("id")
+        gt = annotations.get(row_id)
+        if gt in ("supported", "unsupported"):
+            labeled_rows.append({
+                "id": row_id,
+                "claim": item["claim"],
+                "predicted_label": item["predicted_label"],
+                "ground_truth": gt,
+            })
+
+    total_generated = len(generated_records)
+
+    if labeled_rows:
+        labeled_count = len(labeled_rows)
+        logger.info("Part 2: Found %d labeled claims (out of %d). Computing metrics...", labeled_count, total_generated)
+        y_true = [r["ground_truth"] for r in labeled_rows]
+        y_pred = [r["predicted_label"] for r in labeled_rows]
+        m = calculate_metrics(y_true, y_pred, positive_label="unsupported")
+
+        unsupported_before = sum(1 for yt in y_true if yt == "unsupported")
+        rate_before = unsupported_before / len(y_true) if len(y_true) > 0 else 0.0
+
+        kept = [i for i, yp in enumerate(y_pred) if yp == "supported"]
+        unsupported_after = sum(1 for i in kept if y_true[i] == "unsupported")
+        rate_after = unsupported_after / len(kept) if len(kept) > 0 else 0.0
+
+        rel_red = (rate_before - rate_after) / rate_before * 100.0 if rate_before > 0 else 0.0
+
+        return {
+            "status": "evaluated",
+            "num_claims_labeled": labeled_count,
+            "num_total_generated": total_generated,
+            "metrics": m,
+            "ungrounded_rate_before": round(rate_before, 4),
+            "ungrounded_rate_after": round(rate_after, 4),
+            "relative_reduction_pct": round(rel_red, 2),
+        }
 
     return {
         "status": "pending_annotations",
-        "file_path": str(TO_LABEL_FILE),
-        "num_claims_to_label": len(generated_records),
+        "file_path": str(LABELING_SHEET_FILE),
+        "num_claims_to_label": total_generated,
         "message": (
-            f"Wrote {len(generated_records)} generated claims to {TO_LABEL_FILE.name} with blank ground_truth fields. "
-            "Skipping Part 2 metric calculation until ground_truth fields are annotated with 'supported' or 'unsupported'."
+            f"Found {total_generated} generated claims in {LABELING_SHEET_FILE.name} with blank ground_truth fields. "
+            "No claims have been labeled yet (0 annotated). Fill 'ground_truth' with 'supported' or 'unsupported' in "
+            f"{LABELING_SHEET_FILE.name} to view Part 2 metrics."
         ),
     }
 
@@ -359,10 +407,23 @@ def main() -> None:
     print(f"  Relative Reduction:               {p1_test['relative_reduction_pct']:.1f}%")
     print("  * Note: Part 1's reduction figure is by construction due to fixed synthetic claims.")
 
+    print("\n  [Part 1 False Flags (Ground Truth = Supported, Verifier = Unsupported)]:")
+    false_flags = [c for c in p1_test["claims_evaluated"] if c["ground_truth"] == "supported" and c["predicted"] == "unsupported"]
+    cases_map = {c["id"]: c for c in cases}
+    if false_flags:
+        for idx, ff in enumerate(false_flags, 1):
+            evidence_str = " | ".join(cases_map.get(ff["case_id"], {}).get("evidence", []))
+            print(f"    {idx}. Case ID:    {ff['case_id']}")
+            print(f"       Claim:      \"{ff['claim']}\"")
+            print(f"       Confidence: {ff['confidence']:.3f} (threshold: {p1_test['threshold_used']:.3f})")
+            print(f"       Evidence:   {evidence_str}")
+    else:
+        print("    None (no false flags).")
+
     print("\n[PART 2: End-to-End LLM Generation & Verification]")
     if part2_res["status"] == "evaluated":
         p2_m = part2_res["metrics"]
-        print(f"  Generated Claims Annotated:       {part2_res['num_generated_claims']}")
+        print(f"  Generated Claims Annotated:       {part2_res.get('num_claims_labeled', 0)} (out of {part2_res.get('num_total_generated', 0)})")
         print(f"  Verifier Precision:               {p2_m['precision'] * 100:.1f}%")
         print(f"  Verifier Recall:                  {p2_m['recall'] * 100:.1f}%")
         print(f"  Verifier F1:                      {p2_m['f1'] * 100:.1f}%")

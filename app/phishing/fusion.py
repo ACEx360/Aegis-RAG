@@ -154,9 +154,15 @@ def fuse_phishing_layers(
                 "Trust discount denied: sender matches sent-contacts, but an anchor-text vs href mismatch was detected"
             )
         elif not (spf_pass and dkim_pass):
-            all_raw_evidence.append(
-                "Trust discount denied: sender matches sent-contacts, but SPF or DKIM failed verification"
-            )
+            auth_layer = next((l for l in layers if l.name == "sender_auth"), None)
+            if auth_layer and not auth_layer.available:
+                all_raw_evidence.append(
+                    "Trust discount denied: sender matches sent-contacts, but authentication results were not available"
+                )
+            else:
+                all_raw_evidence.append(
+                    "Trust discount denied: sender matches sent-contacts, but SPF or DKIM failed verification"
+                )
         else:
             trust_discount_applied = True
             final_score = max(0.0, final_score - settings.trust_score_reduction)
