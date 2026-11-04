@@ -1,0 +1,22 @@
+stateDiagram-v2
+    [*] --> Ingested : Gmail sync or demo load
+
+    Ingested --> EmbeddingComputed : compute_embedding()
+
+    EmbeddingComputed --> PriorityScored : classify_priority()
+
+    PriorityScored --> FraudScored : detect_phishing()
+
+    FraudScored --> ExplanationGenerated : generate_explanation()
+
+    ExplanationGenerated --> Verified : verify_claims()
+
+    Verified --> [*]
+
+    state Verified {
+        [*] --> Unopened
+        Unopened --> Opened : POST /ui/emails/{id}/panel
+    }
+
+    note right of Ingested : All further states can\nbe re-entered if version\nbumps trigger re-analysis
+

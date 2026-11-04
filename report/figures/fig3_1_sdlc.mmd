@@ -1,0 +1,38 @@
+%%{init: {'theme': 'neutral', 'themeVariables': {'primaryColor': '#f5f5f5', 'primaryTextColor': '#000', 'primaryBorderColor': '#333', 'lineColor': '#333'}}}%%
+flowchart TD
+    START(["Project Start"]):::ctrl
+    START --> S1
+
+    subgraph S1["Stage 1 — Core Infrastructure"]
+        direction LR
+        S1P["Plan"] --> S1D["Design"] --> S1I["Implement"] --> S1T["Test"]
+    end
+
+    S1 --> S2
+    subgraph S2["Stage 2 — UI Shell"]
+        direction LR
+        S2P["Plan"] --> S2D["Design"] --> S2I["Implement"] --> S2T["Test"]
+    end
+
+    S2 --> S3
+    subgraph S3["Stage 3 — RAG + Priority"]
+        direction LR
+        S3P["Plan"] --> S3D["Design"] --> S3I["Implement"] --> S3T["Test"]
+    end
+
+    S3 --> S4
+    subgraph S4["Stage 4 — Phishing Detection"]
+        direction LR
+        S4P["Plan"] --> S4D["Design"] --> S4I["Implement"] --> S4T["Test"]
+    end
+
+    S4 --> S5
+    subgraph S5["Stage 5 — Explanation & Verification"]
+        direction LR
+        S5P["Plan"] --> S5D["Design"] --> S5I["Implement"] --> S5T["Test"]
+    end
+
+    S5 --> DONE(["System Complete\n& Evaluated"]):::ctrl
+
+    classDef ctrl fill:#d8d8d8,stroke:#333,color:#000
+

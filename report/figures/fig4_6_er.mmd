@@ -1,0 +1,45 @@
+erDiagram
+    emails {
+        int id PK
+        string gmail_id UK
+        string subject
+        string sender
+        string recipients
+        datetime received_at
+        text body_text
+        text raw_html
+        text raw_headers
+        text links
+        text embedding
+        text gmail_labels
+        bool is_newsletter
+        bool is_demo
+        float priority_score
+        string priority_label
+        string priority_reason
+        text priority_evidence
+        float fraud_score
+        string fraud_label
+        string fraud_reason
+        text fraud_evidence
+        text layer_results
+        string fraud_version
+        text explanation
+        text claims
+        text verified_claims
+        string verification_version
+        datetime opened_at
+        datetime created_at
+    }
+
+    llm_cache {
+        int id PK
+        string gmail_id
+        string task_type
+        string prompt_version
+        text response_json
+        datetime created_at
+    }
+
+    emails ||--o{ llm_cache : "has cached LLM results"
+

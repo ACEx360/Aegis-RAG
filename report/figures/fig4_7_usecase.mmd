@@ -1,0 +1,25 @@
+flowchart TD
+    U["User (Actor)"]
+    GA["Gmail API (Actor)"]
+    GMA["Gemini API (Actor)"]
+
+    U --> UC1["View Priority Dashboard\n(unread emails)"]
+    U --> UC2["Open / Read Email\n(sets opened_at via POST)"]
+    U --> UC3["View Verified Explanation\n& Detection Layers"]
+    U --> UC4["View Previous Messages\n(opened emails)"]
+    U --> UC5["View Feed\n(newsletters)"]
+    U --> UC6["View Flagged / Fraud tab"]
+    U --> UC7["Configure Settings\n(mode, thresholds, OAuth)"]
+
+    SYS1["Sync Emails\nfrom Gmail"]
+    SYS2["Analyze Priority\n& Phishing"]
+    SYS3["Generate &\nVerify Explanation"]
+
+    GA --> SYS1
+    SYS2 --> GMA
+    SYS3 --> GMA
+
+    style U fill:#e8e8e8,stroke:#666,color:#000
+    style GA fill:#e8e8e8,stroke:#666,color:#000
+    style GMA fill:#e8e8e8,stroke:#666,color:#000
+

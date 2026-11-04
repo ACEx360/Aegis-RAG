@@ -1,0 +1,23 @@
+flowchart TD
+    A["Gmail API\n(External)"] -- "Raw messages (HTTPS)" --> B["app/ingest\nNormalizer"]
+    B --> C[("SQLite DB\nemails table")]
+    C --> D["app/rag\nEmbeddings + Vector Store"]
+    D -- "Top-K similar emails" --> E["app/priority\nHybrid Classifier"]
+    D -- "Evidence context" --> F["app/phishing\nDetector + Fusion"]
+    E -- "priority_score, label, evidence" --> C
+    F -- "fraud_score, label, layer_results" --> C
+    C --> G["app/explain\nExplanation Generator"]
+    G -- "claims JSON" --> H["app/verify\nMiniCheck Verifier"]
+    H -- "verified_claims JSON" --> C
+    C --> I["app/ui + app/api\nFastAPI + Jinja2 + HTMX"]
+    J["Browser\n(User)"] -- "HTTP requests" --> I
+    I -- "Dashboard HTML / JSON" --> J
+    K["Gemini API\n(External)"] -- "LLM responses" --> L["app/llm\nGemini Client\n(cache + retry)"]
+    L --> E
+    L --> F
+    L --> G
+    style A fill:#f0f0f0,stroke:#888,color:#000
+    style J fill:#f0f0f0,stroke:#888,color:#000
+    style K fill:#f0f0f0,stroke:#888,color:#000
+    style C fill:#e0e0e0,stroke:#666,color:#000
+

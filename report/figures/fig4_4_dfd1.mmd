@@ -1,0 +1,19 @@
+flowchart TD
+    GMAIL["Gmail API"] -- "Raw messages" --> P1["1. Ingest\n& Normalize"]
+    P1 -- "Normalized email" --> DS1[("Emails Store\nSQLite")]
+    DS1 -- "Email record" --> P2["2. Analyze\n(Priority + Phishing)"]
+    DS2[("RAG Embeddings\nSQLite")] -- "Embedding vectors" --> P2
+    P2 -- "Scores, evidence" --> DS1
+    DS1 -- "Scores + evidence" --> P3["3. Explain\n& Verify"]
+    P3 -- "Verified claims" --> DS1
+    DS1 -- "All data" --> P4["4. Present\n(UI + API)"]
+    BROWSER["Browser (User)"] -- "HTTP requests" --> P4
+    P4 -- "Dashboard HTML / JSON" --> BROWSER
+    GM["Gemini API"] -- "LLM responses" --> P2
+    GM -- "LLM responses" --> P3
+    style GMAIL fill:#e0e0e0,stroke:#666,color:#000
+    style BROWSER fill:#e0e0e0,stroke:#666,color:#000
+    style GM fill:#e0e0e0,stroke:#666,color:#000
+    style DS1 fill:#d8d8d8,stroke:#555,color:#000
+    style DS2 fill:#d8d8d8,stroke:#555,color:#000
+

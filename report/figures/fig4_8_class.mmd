@@ -1,0 +1,70 @@
+classDiagram
+    class Settings {
+        +float minicheck_threshold
+        +float fraud_threshold
+        +float weight_sender_auth
+        +float priority_rule_weight
+        +str verification_version
+        +str gemini_model
+    }
+
+    class BackgroundWorker {
+        +run()
+        +process_batch(emails)
+    }
+
+    class PriorityClassifier {
+        +classify(email, context) PriorityResult
+    }
+
+    class RuleEngine {
+        +score(email) float
+    }
+
+    class PhishingDetector {
+        +detect(email) FusionResult
+        +providers: list~Provider~
+    }
+
+    class Provider {
+        <<interface>>
+        +run(email) ProviderResult
+        +name: str
+        +available: bool
+    }
+
+    class FusionEngine {
+        +fuse(results, weights) float
+    }
+
+    class ExplanationGenerator {
+        +generate(email, evidence) str
+        +decompose(explanation) list~str~
+    }
+
+    class MiniCheckVerifier {
+        +verify(claims, evidence) list~ClaimResult~
+        -model: AutoModelForSequenceClassification
+    }
+
+    class GeminiClient {
+        +call(prompt, task_type) dict
+        -_cache_lookup(gmail_id, task) str
+        -_retry_with_backoff()
+    }
+
+    BackgroundWorker --> PriorityClassifier
+    BackgroundWorker --> PhishingDetector
+    BackgroundWorker --> ExplanationGenerator
+    BackgroundWorker --> MiniCheckVerifier
+    PriorityClassifier --> RuleEngine
+    PriorityClassifier --> GeminiClient
+    PhishingDetector --> Provider
+    PhishingDetector --> FusionEngine
+    ExplanationGenerator --> GeminiClient
+    Provider <|-- SenderAuthProvider
+    Provider <|-- URLHeuristicsProvider
+    Provider <|-- BertPhishingProvider
+    Provider <|-- GeminiSocialProvider
+    GeminiSocialProvider --> GeminiClient
+

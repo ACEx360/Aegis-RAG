@@ -1,0 +1,41 @@
+flowchart TD
+    MAIN["app/main.py\n(FastAPI app, lifespan)"]
+    MAIN --> API["app/api/\n(JSON routes)"]
+    MAIN --> UI["app/ui/\n(Jinja2 + HTMX routes)"]
+    MAIN --> WRK["app/priority/worker.py\n(BackgroundWorker)"]
+    MAIN --> DB["app/db/models.py\n(SQLAlchemy ORM)"]
+
+    WRK --> PRI["app/priority/classifier.py"]
+    WRK --> PHI["app/phishing/detector.py"]
+    WRK --> EXP["app/explain/generator.py"]
+    WRK --> VER["app/verify/minicheck_verifier.py"]
+
+    PRI --> RULES["app/priority/rules.py"]
+    PRI --> LLM["app/llm/gemini_client.py"]
+    PRI --> RAG["app/rag/vector_store.py"]
+    RAG --> EMB["app/rag/embeddings.py"]
+
+    PHI --> SA["providers/sender_auth.py"]
+    PHI --> URL["providers/url_heuristics.py"]
+    PHI --> BERT["providers/bert_phishing.py"]
+    PHI --> GS["providers/gemini_social.py"]
+    PHI --> FUS["app/phishing/fusion.py"]
+    GS --> LLM
+    EXP --> LLM
+
+    API --> DB
+    UI --> DB
+    WRK --> DB
+    PRI --> DB
+    PHI --> DB
+
+    SETTINGS["app/settings.py"]
+    SETTINGS -.-> MAIN
+    SETTINGS -.-> LLM
+    SETTINGS -.-> FUS
+    SETTINGS -.-> VER
+    SETTINGS -.-> PRI
+
+    style SETTINGS fill:#e8e8e8,stroke:#888,color:#000
+    style DB fill:#d0d0d0,stroke:#666,color:#000
+

@@ -1,0 +1,31 @@
+{
+  "figures": [
+    {"id": "1.1", "caption": "AegisRAG System Overview", "source": "figures/fig1_1_overview.mmd", "chapter": 1},
+    {"id": "3.1", "caption": "Incremental Development Model Applied to AegisRAG", "source": "figures/fig3_1_sdlc.mmd", "chapter": 3},
+    {"id": "4.1", "caption": "AegisRAG System Architecture", "source": "figures/fig4_1_architecture.mmd", "chapter": 4},
+    {"id": "4.2", "caption": "Processing Sequence for a Single Email", "source": "figures/fig4_2_sequence.mmd", "chapter": 4},
+    {"id": "4.3", "caption": "Level 0 Data Flow Diagram (Context Diagram)", "source": "figures/fig4_3_dfd0.mmd", "chapter": 4},
+    {"id": "4.4", "caption": "Level 1 Data Flow Diagram", "source": "figures/fig4_4_dfd1.mmd", "chapter": 4},
+    {"id": "4.5", "caption": "Level 2 Data Flow Diagram — Phishing Detection Sub-Process", "source": "figures/fig4_5_dfd2.mmd", "chapter": 4},
+    {"id": "4.6", "caption": "Entity-Relationship Diagram — AegisRAG Database", "source": "figures/fig4_6_er.mmd", "chapter": 4},
+    {"id": "4.7", "caption": "Use Case Diagram", "source": "figures/fig4_7_usecase.mmd", "chapter": 4},
+    {"id": "4.8", "caption": "Simplified Class Diagram — Key Modules", "source": "figures/fig4_8_class.mmd", "chapter": 4},
+    {"id": "4.9", "caption": "State Diagram — Email Lifecycle", "source": "figures/fig4_9_state.mmd", "chapter": 4},
+    {"id": "4.10", "caption": "Deployment Diagram", "source": "figures/fig4_10_deployment.mmd", "chapter": 4},
+    {"id": "5.1", "caption": "Project Timeline (Implementation Phases from Git Log)", "source": "figures/fig5_1_timeline.mmd", "chapter": 5},
+    {"id": "6.1", "caption": "Module Dependency Graph", "source": "figures/fig6_1_modules.mmd", "chapter": 6},
+    {"id": "6.2", "caption": "Phishing Detection and Fusion Algorithm", "source": "figures/fig6_2_fusion.mmd", "chapter": 6},
+    {"id": "6.3", "caption": "Claim Verification Pipeline", "source": "figures/fig6_3_verify.mmd", "chapter": 6},
+    {"id": "8.1", "caption": "Phase 1 Detection — Per-Layer F1 Scores on Set A", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.2", "caption": "Phase 2 Threshold Sensitivity Sweep — Precision, Recall and Ungrounded-Claim Rate", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.3", "caption": "[SCREENSHOT] Priority Tab in Demo Mode", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.4", "caption": "[SCREENSHOT] Expanded Email Panel — Summary Tab", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.5", "caption": "[SCREENSHOT] Verified Explanation Tab — Supported and Removed Claims", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.6", "caption": "[SCREENSHOT] Detection Layers Tab — Per-Layer Scores", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.7", "caption": "[SCREENSHOT] Flagged / Fraud Tab", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.8", "caption": "[SCREENSHOT] Feed Tab — Newsletter Emails", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.9", "caption": "[SCREENSHOT] Settings Tab", "source": "PLACEHOLDER", "chapter": 8},
+    {"id": "8.10", "caption": "[SCREENSHOT] Swagger API Explorer (/docs)", "source": "PLACEHOLDER", "chapter": 8}
+  ],
+  "_note": "IDs match [Figure N.M: ...] markers in chapter markdown files. Render .mmd sources with npx mmdc (ask user first) or graphviz. PLACEHOLDER figures = screenshots or generated charts to be added at Checkpoint 3."
+}

@@ -1,0 +1,43 @@
+sequenceDiagram
+    participant U as User (Browser)
+    participant UI as FastAPI / UI
+    participant DB as SQLite DB
+    participant W as Background Worker
+    participant RAG as RAG Module
+    participant PRI as Priority Classifier
+    participant PHI as Phishing Detector
+    participant EXP as Explain + Verify
+    participant GM as Gemini API
+
+    U->>UI: GET /ui/ (open dashboard)
+    UI->>DB: SELECT unread emails
+    DB-->>UI: Email rows (partial scores)
+    UI-->>U: Priority tab HTML
+
+    Note over W: Worker runs in separate thread
+    W->>DB: SELECT emails needing analysis
+    W->>RAG: compute_embedding(email)
+    RAG-->>DB: store embedding
+    W->>RAG: retrieve_similar(email)
+    RAG->>DB: fetch all embeddings
+    DB-->>RAG: embedding array
+    RAG-->>W: top-2 similar emails + evidence
+
+    W->>PRI: classify(email, evidence)
+    PRI->>GM: relevance score (if key set)
+    GM-->>PRI: JSON score
+    PRI-->>DB: write priority_score, label, evidence
+
+    W->>PHI: detect(email)
+    PHI-->>DB: write fraud_score, label, layer_results
+
+    W->>EXP: generate_and_verify(email)
+    EXP->>GM: explanation + decompose claims
+    GM-->>EXP: explanation text + claims JSON
+    EXP-->>DB: write explanation, verified_claims
+
+    U->>UI: Click expand email row (HTMX)
+    UI->>DB: POST /ui/emails/{id}/panel (sets opened_at)
+    DB-->>UI: verified_claims, layer_results
+    UI-->>U: Expanded panel (Summary, Verified Explanation, Detection Layers)
+

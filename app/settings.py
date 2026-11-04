@@ -76,10 +76,10 @@ class Settings(BaseSettings):
 
     # --- Stage 5: Explanation & Claim Verification (§8, §16) ------------
     minicheck_model_name: str = "roberta-large"
-    minicheck_threshold: float = 0.5
+    minicheck_threshold: float = 0.10
     explanation_prompt_version: str = "v2"
     claim_decomposition_prompt_version: str = "v2"
-    verification_version: str = "v2"
+    verification_version: str = "v3"
     max_claims_per_email: int = 6
 
     # --- Derived paths (resolved relative to project root, §14) ----------

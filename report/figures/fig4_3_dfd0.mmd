@@ -1,0 +1,9 @@
+flowchart LR
+    A["Gmail API"] -- "Raw email messages" --> SYS["AegisRAG System"]
+    SYS -- "Dashboard views\nAnalysis scores" --> B["Browser (User)"]
+    GM["Gemini API\n(optional)"] -- "LLM analysis outputs" --> SYS
+    style A fill:#e0e0e0,stroke:#666,color:#000
+    style B fill:#e0e0e0,stroke:#666,color:#000
+    style GM fill:#e0e0e0,stroke:#666,color:#000
+    style SYS fill:#f8f8f8,stroke:#333,color:#000
+

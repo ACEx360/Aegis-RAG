@@ -129,7 +129,11 @@ def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
                 return True
             if e.fraud_score is None or e.fraud_version != settings.fraud_version or force_phishing:
                 return True
-            # Stage 5 auto-verify: unread non-newsletter or flagged emails not yet verified at current version
+            # Verification scope: only non-newsletter unread emails and flagged (fraud >= threshold) emails
+            # receive a full verified explanation via MiniCheck. Newsletters have no LLM explanation
+            # or atomic claims and are therefore never verified. Emails outside this condition still
+            # have verification_version stamped (see step 3 below) — the stamp records that they were
+            # considered under the current verification configuration, NOT that MiniCheck was run on them.
             is_nl = is_newsletter_email(e.raw_headers, e.labels)
             is_flagged = e.fraud_score is not None and e.fraud_score >= settings.fraud_threshold
             return bool(((not is_nl) or is_flagged) and e.verification_version != settings.verification_version)
@@ -167,8 +171,12 @@ def _run_analysis_worker(is_demo: bool, force_phishing: bool = False) -> None:
                 ):
                     detect_phishing_for_email(email, db=db, force_refresh=force_phishing)
 
-                # 3. Explanation and Claim Verification (Stage 5)
-                # Runs only on unread non-newsletter emails and flagged emails; skips already verified
+                # Explanation and Claim Verification (Stage 5)
+                # Runs only on unread non-newsletter emails and flagged emails.
+                # Newsletters have no LLM explanation or claims; other emails (already-read,
+                # newsletters) have their verification_version stamped WITHOUT running MiniCheck —
+                # the stamp records they were considered under the current configuration,
+                # not that they were actively verified. See _needs_analysis() for the filter logic.
                 is_nl = is_newsletter_email(email.raw_headers, email.labels)
                 is_flagged = email.fraud_score is not None and email.fraud_score >= settings.fraud_threshold
                 if (

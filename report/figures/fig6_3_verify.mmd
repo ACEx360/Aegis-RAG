@@ -1,0 +1,16 @@
+flowchart TD
+    A["Email Record\n(from DB)"] --> B["Assemble Evidence\n(numbered items from\npriority_evidence + fraud_evidence)"]
+    B --> C["Build Input Pairs:\n(claim_j, full_evidence)\n(claim_j, evidence_item_i)\nfor each claim j, item i"]
+    C --> D["Tokenize all pairs\n(AutoTokenizer,\nMiniCheck-RoBERTa-Large)"]
+    D --> E["Single Batched Forward Pass\nAutoModelForSequenceClassification\ntorch.no_grad()"]
+    E --> F["Softmax → support probability\nfor each (claim, evidence) pair"]
+    F --> G["conf(c_j) = max over\nfull-doc and per-item probs"]
+    G --> H{"conf >= 0.10\n(threshold)"}
+    H -- "Yes" --> I["Label: SUPPORTED\nRecord best evidence citation"]
+    H -- "No" --> J["Label: UNSUPPORTED\nStore for optional display"]
+    I --> K["Write verified_claims JSON\nto emails table\n(verification_version = v3)"]
+    J --> K
+
+    style A fill:#f0f0f0,stroke:#888,color:#000
+    style K fill:#d8d8d8,stroke:#555,color:#000
+

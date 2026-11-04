@@ -1,0 +1,29 @@
+{
+  "tables": [
+    {"id": "2.1", "caption": "Literature Survey Summary by Theme", "chapter": 2},
+    {"id": "3.1", "caption": "Functional Requirements", "chapter": 3},
+    {"id": "3.2", "caption": "External Interface Requirements", "chapter": 3},
+    {"id": "3.3", "caption": "Nonfunctional Requirements", "chapter": 3},
+    {"id": "3.4", "caption": "Recommended System Requirements", "chapter": 3},
+    {"id": "4.1", "caption": "Phishing Detection Provider Weights (fraud_version v3)", "chapter": 4},
+    {"id": "4.2", "caption": "Priority Classification Score Thresholds", "chapter": 4},
+    {"id": "4.3", "caption": "Fraud Confidence Band Thresholds", "chapter": 4},
+    {"id": "5.1", "caption": "Project Effort Estimate by Module", "chapter": 5},
+    {"id": "5.2", "caption": "Risk Analysis Matrix", "chapter": 5},
+    {"id": "5.3", "caption": "Implementation Phase Schedule (from Git Log)", "chapter": 5},
+    {"id": "5.4", "caption": "Team Module Ownership", "chapter": 5},
+    {"id": "6.1", "caption": "Tools and Technologies Used", "chapter": 6},
+    {"id": "6.2", "caption": "Application Module Summary", "chapter": 6},
+    {"id": "7.1", "caption": "Test Suite Summary", "chapter": 7},
+    {"id": "7.2", "caption": "Selected Unit Test Cases and Results", "chapter": 7},
+    {"id": "8.1", "caption": "Phase 1 Set A — Per-Layer Metrics Without Gemini (20 Emails)", "chapter": 8},
+    {"id": "8.2", "caption": "Phase 1 Set A — Per-Layer Metrics With Gemini (20 Emails)", "chapter": 8},
+    {"id": "8.3", "caption": "Phase 1 Set B — BERT Public Dataset Holdout Metrics (300 Emails)", "chapter": 8},
+    {"id": "8.4", "caption": "Phase 1 Set C — Per-Layer Metrics Without Gemini (14 Emails)", "chapter": 8},
+    {"id": "8.5", "caption": "Phase 1 Real Inbox Calibration (86 Emails, fraud_version v3)", "chapter": 8},
+    {"id": "8.6", "caption": "Phase 2 Part 1 — Synthetic Benchmark Metrics (Threshold = 0.10)", "chapter": 8},
+    {"id": "8.7", "caption": "Phase 2 Part 2 — End-to-End LLM Claim Verification Metrics (90 Claims)", "chapter": 8},
+    {"id": "8.8", "caption": "Phase 2 Post-Hoc Threshold Sensitivity Sweep (90 Claims, Exploratory)", "chapter": 8}
+  ]
+}
+

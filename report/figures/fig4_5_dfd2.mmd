@@ -1,0 +1,18 @@
+flowchart TD
+    IN["Normalized Email Record"] --> L1["Layer 1\nSender Auth\n(parse Authentication-Results)"]
+    IN --> L2["Layer 2\nURL Heuristics\n(rules-based link analysis)"]
+    IN --> L3["Layer 3\nBERT Classifier\n(bert-finetuned-phishing)"]
+    L1 -- "score, reason, available" --> FUS
+    L2 -- "score, reason, available" --> FUS
+    L3 -- "score, reason, available" --> FUS
+    L1 -- "prelim score ≥ 0.25?" --> CHK{"Trigger\nGemini?"}
+    L2 --> CHK
+    L3 --> CHK
+    CHK -- "Yes + API key set" --> L4["Layer 4\nGemini Social\n(4-vector JSON analysis)"]
+    CHK -- "No" --> FUS
+    L4 -- "score, reason, available" --> FUS["Fusion Engine\n(re-normalize weights,\nweighted avg)"]
+    FUS --> RULES["Apply Rules:\n1. Strong-layer floor (0.60)\n2. Threat-intel floor (0.90)\n3. Clean-sender cap\n4. Trust discount (-30%)"]
+    RULES --> OUT["fraud_score\nfraud_label\nlayer_results → DB"]
+    style IN fill:#f0f0f0,stroke:#888,color:#000
+    style OUT fill:#d8d8d8,stroke:#555,color:#000
+

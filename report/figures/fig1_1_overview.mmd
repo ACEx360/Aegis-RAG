@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral', 'themeVariables': {'primaryColor': '#f5f5f5', 'primaryTextColor': '#000', 'primaryBorderColor': '#333', 'lineColor': '#333', 'secondaryColor': '#e8e8e8', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    A["Gmail API\n(OAuth2 gmail.readonly)"]:::ext --> B["1 Ingest &\nNormalise"]:::stage
+    DEMO["Demo Emails\n(20 built-in)"]:::ext --> B
+    B --> C["2 Feature\nExtraction\n(links, headers,\nattachments)"]:::stage
+    C --> D["3 RAG Retrieval\n(all-MiniLM-L6-v2\nNumPy cosine)"]:::stage
+    D --> E["4a Priority\nClassifier\n(rules + Gemini)"]:::stage
+    D --> F["4b Phishing\nDetector\n(4 layers + fusion)"]:::stage
+    E --> G["5 Explanation\nGenerator\n(Gemini, grounded\nevidence)"]:::stage
+    F --> G
+    G --> H["6 Claim\nDecomposer\n(Gemini, max 6)"]:::stage
+    H --> I["7 NLI Verifier\n(MiniCheck\nRoBERTa-Large)"]:::stage
+    I --> J["8 SQLite DB\n(scores, claims,\ncache)"]:::store
+    J --> K["Dashboard\n(FastAPI / Jinja2\n/ HTMX)"]:::ui
+
+    GeminiAPI["Gemini API\n(4a 4b 5 6)"]:::ext -.-> E
+    GeminiAPI -.-> F
+    GeminiAPI -.-> G
+    GeminiAPI -.-> H
+
+    classDef ext fill:#e0e0e0,stroke:#555,color:#000
+    classDef stage fill:#f8f8f8,stroke:#333,color:#000
+    classDef store fill:#d8d8d8,stroke:#555,color:#000
+    classDef ui fill:#f0f0f0,stroke:#333,color:#000

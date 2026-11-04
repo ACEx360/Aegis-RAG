@@ -1,0 +1,23 @@
+flowchart LR
+    subgraph Implementation["Implementation Phases (from git log)"]
+        S12["Stage 1+2\nInfrastructure + UI\n28 Oct 2026"]
+        S3["Stage 3\nPriority + RAG\n29 Oct 2026"]
+        S4["Stage 4\nPhishing Detection\n29–31 Oct 2026"]
+        S5["Stage 5\nExplanation + Verify\n1 Nov 2026"]
+        EVAL["Evaluation\n& Testing\n1 Nov 2026"]
+    end
+
+    P1["Phase 1\nSynopsis + Literature\n[TO CONFIRM]"] --> P2
+    P2["Phase 2\nDesign\n[TO CONFIRM]"] --> S12
+    S12 --> S3
+    S3 --> S4
+    S4 --> S5
+    S5 --> EVAL
+    EVAL --> RPT["Report Writing\n2 Nov 2026 →"]
+
+    style S12 fill:#d0d0d0,stroke:#666,color:#000
+    style S3 fill:#d0d0d0,stroke:#666,color:#000
+    style S4 fill:#d0d0d0,stroke:#666,color:#000
+    style S5 fill:#d0d0d0,stroke:#666,color:#000
+    style EVAL fill:#d0d0d0,stroke:#666,color:#000
+
