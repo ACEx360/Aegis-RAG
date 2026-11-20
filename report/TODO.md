@@ -25,22 +25,18 @@ Resolve each before building the final .docx.
 
 ---
 
-## [VERIFY] Items — Literature Content to Verify
+## [VERIFY] Items — Literature Content & Reference Verification
 
-These items in Chapter 2 were marked [VERIFY] because they could not be confirmed
-from the abstract alone. Verify before final submission.
+These items were reviewed against publication abstracts and the project synopsis (§4.9).
+References [1], [2], [3], [4], [5], [7], [9], [10], [11], [12], [13], [14], [15], [16], [17], [18] have been verified directly from their published abstracts. The remaining items below require full-text confirmation:
 
-| ID | Location | Item |
-|----|----------|------|
-| V-01 | Ch 2, §2.2 (ref [5]) | ChatSpamDetector: verify the specific metrics and dataset name reported |
-| V-02 | Ch 2, §2.2 (ref [6]) | Chataut et al.: verify specific model names compared and reported metrics |
-| V-03 | Ch 2, §2.2 (ref [7]) | Lee 2025: verify specific contributions, dataset, and accuracy figures |
-| V-04 | Ch 2, §2.3 (ref [8]) | Asiri et al. (PhishingRTDS): verify specific accuracy figure reported |
-| V-05 | Ch 2, §2.3 (ref [9]) | Lee et al. APWG eCrime 2024: verify specific results and dataset |
-| V-06 | Ch 2, §2.3 (ref [10]) | Al-Subaiey et al.: verify specific model and features used |
-| V-07 | Ch 2, §2.3 (ref [11]) | Karim et al.: verify specific dataset and reported metrics |
-| V-08 | Ch 2, §2.3 (ref [12]) | Roumeliotis et al.: verify specific models compared and datasets |
-| V-09 | Ch 2, §2.5 (ref [16]) | Dhuliawala et al.: verify specific datasets and reported hallucination reduction figures |
+| ID | Location | Item | Status |
+|----|----------|------|---|
+| V-01 | Ch 2, §2.2 (ref [6]) | Chataut et al. (CCWC 2024): verify specific models compared and dataset details from full conference proceedings | PENDING [VERIFY] |
+| V-02 | Ch 2, §2.3 (ref [8]) | Asiri et al. (PhishingRTDS): verify deep learning model architecture and dataset details from full article | PENDING [VERIFY] |
+| V-03 | Ch 11 (ref [4]) | Tang et al. (MiniCheck): verify full author list; synopsis records 'Y. Tang et al.' while published paper lists L. Tang et al. | PENDING [VERIFY full author list] |
+| V-04 | Ch 11 (ref [13]) | Niu et al. (RAGTruth): verify full author list; synopsis records 'C. Niu et al.' | PENDING [VERIFY full author list] |
+| V-05 | Ch 11 (ref [7]) | Lee (2025): verify author initial; synopsis records 'C. Lee' while arXiv:2502.04759 lists J. Lee | PENDING [VERIFY author initial] |
 
 ---
 
