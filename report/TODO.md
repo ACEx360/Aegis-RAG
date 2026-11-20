@@ -114,5 +114,6 @@ All 16 Mermaid diagram PNGs rendered successfully via `npx @mermaid-js/mermaid-c
 | minicheck_threshold: 0.50 → 0.10 | app/settings.py | DONE ✓ |
 | verification_version: "v2" → "v3" | app/settings.py | DONE ✓ |
 | Re-run verification in DB | report/re_verify_v3.py | DONE ✓ (6 emails updated) |
+| Demo emails pipeline (v3/v3) | aegis.db | DONE ✓ (all 20 demo emails complete under fraud v3 and verification v3) |
 | ruff clean | all | DONE ✓ |
 | 113 fast tests pass | tests/ | DONE ✓ |

@@ -260,58 +260,62 @@ All verified against `app/settings.py`:
 
 IEEE style requires references to be numbered in order of first citation across the full document. References have been renumbered accordingly. The table below shows the final assignment.
 
-| New # | Old # | Authors | First cited in | Chapter/Section |
+| New # | Old # | Authors & Title | Label | First cited in |
 |---|---|---|---|---|
-| [1] | [1] | Heiding et al. 2024 | Ch1 §1.2 | First in document |
-| [2] | [10] | Hazell 2023 | Ch1 §1.2 | Second in document |
-| [3] | [12] | Lewis et al. 2020 | Ch2 §2.1 (RAG background) | Third |
-| [4] | [16] | Tang et al. 2024 | Ch2 §2.1 (NLI background) | Fourth |
-| [5] | [2] | Koide et al. 2024 | Ch2 §2.2 | Fifth |
-| [6] | [3] | Chataut et al. 2024 | Ch2 §2.2 | Sixth |
-| [7] | [4] | Lee 2025 | Ch2 §2.2 | Seventh |
-| [8] | [5] | Asiri et al. 2024 | Ch2 §2.3 | Eighth |
-| [9] | [6] | Lee et al. 2024 | Ch2 §2.3 | Ninth |
-| [10] | [7] | Al-Subaiey et al. 2024 | Ch2 §2.3 | Tenth |
-| [11] | [8] | Karim et al. 2023 | Ch2 §2.3 | Eleventh |
-| [12] | [9] | Roumeliotis et al. 2024 | Ch2 §2.3 | Twelfth |
-| [13] | [11] | Niu et al. 2024 | Ch2 §2.4 | Thirteenth |
-| [14] | [13] | Manakul et al. 2023 | Ch2 §2.5 | Fourteenth |
-| [15] | [14] | Min et al. 2023 | Ch2 §2.5 | Fifteenth |
-| [16] | [15] | Dhuliawala et al. 2023 | Ch2 §2.5 | Sixteenth |
-| [17] | [17] | Devlin et al. 2019 | Ch2 §2.6 | Seventeenth (unchanged) |
-| [18] | [18] | APWG 2025 | Ch2 §2.7 | Eighteenth (unchanged) |
+| [1] | [1] | Heiding et al. 2024 ("Devising and Detecting Phishing Emails Using Large Language Models") | Heiding et al. 2024 | Ch1 §1.2 |
+| [2] | [10] | Hazell 2023 ("Spear Phishing With Large Language Models") | Hazell 2023 | Ch1 §1.2 |
+| [3] | [12] | Lewis et al. 2020 ("Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks") | Lewis et al. 2020 (RAG) | Ch2 §2.1 |
+| [4] | [16] | Tang et al. 2024 ("MiniCheck: Efficient Fact-Checking of LLMs on Grounding Documents") | Tang et al. 2024 (MiniCheck) | Ch2 §2.1 |
+| [5] | [2] | Koide et al. 2024 ("ChatSpamDetector: Leveraging Large Language Models for Effective Phishing Email Detection") | Koide et al. 2024 (ChatSpamDetector) | Ch2 §2.2 |
+| [6] | [3] | Chataut et al. 2024 ("Can AI Keep You Safe? A Study of Large Language Models for Phishing Detection") | Chataut et al. 2024 | Ch2 §2.2 |
+| [7] | [4] | Lee 2025 ("Enhancing Phishing Email Identification with Large Language Models") | Lee 2025 (Enhancing Phishing Identification) | Ch2 §2.2 |
+| [8] | [5] | Asiri et al. 2024 ("PhishingRTDS: A Real-Time Detection System for Phishing Attacks Using a Deep Learning Model") | Asiri et al. 2024 (PhishingRTDS) | Ch2 §2.3 |
+| [9] | [6] | Lee et al. 2024 ("Multimodal Large Language Models for Phishing Webpage Detection and Identification") | Lee et al. 2024 (APWG eCrime) | Ch2 §2.3 |
+| [10] | [7] | Al-Subaiey et al. 2024 ("Novel Interpretable and Robust Web-Based AI Platform for Phishing Email Detection") | Al-Subaiey et al. 2024 | Ch2 §2.3 |
+| [11] | [8] | Karim et al. 2023 ("Phishing Detection System Through Hybrid Machine Learning Based on URL") | Karim et al. 2023 (Hybrid ML URL Phishing) | Ch2 §2.3 |
+| [12] | [9] | Roumeliotis et al. 2024 ("Next-Generation Spam Filtering: Comparative Fine-Tuning of LLMs, NLPs, and CNN Models for Email Spam Classification") | Roumeliotis et al. 2024 | Ch2 §2.3 |
+| [13] | [11] | Niu et al. 2024 ("RAGTruth: A Hallucination Corpus for Developing Trustworthy Retrieval-Augmented Language Models") | Niu et al. 2024 (RAGTruth) | Ch2 §2.4 |
+| [14] | [13] | Manakul et al. 2023 ("SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models") | Manakul et al. 2023 (SelfCheckGPT) | Ch2 §2.5 |
+| [15] | [14] | Min et al. 2023 ("FActScore: Fine-Grained Atomic Evaluation of Factual Precision in Long Form Text Generation") | Min et al. 2023 (FActScore) | Ch2 §2.5 |
+| [16] | [15] | Dhuliawala et al. 2023 ("Chain-of-Verification Reduces Hallucination in Large Language Models") | Dhuliawala et al. 2023 (CoVe) | Ch2 §2.5 |
+| [17] | [17] | Devlin et al. 2019 ("BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding") | Devlin et al. 2019 (BERT) | Ch2 §2.6 |
+| [18] | [18] | APWG 2025 ("Phishing Activity Trends Report") | APWG 2025 | Ch2 §2.7 |
 
 **All 18 references are cited in the text.** No reference is uncited. No reference was lost or duplicated. References [17] and [18] retain their original numbers as they were already cited last.
 
 ---
 
-## Demo email pipeline status (Task 1 answer)
+## Demo email pipeline status
 
-Before making any Gemini calls for demo emails, here is the exact state and cost:
+All 20 demo emails are fully processed under `fraud_version=v3` and `verification_version=v3`:
 
-| Demo email | priority | fraud | fraud_version | explanation | claims | verified | vv |
+| Demo email | Priority | Fraud | fraud_version | Explanation | Claims | Verified Claims | verification_version |
 |---|---|---|---|---|---|---|---|
-| demo-phish-001 | Y | Y | v2 | Y | Y | Y | v1 |
-| demo-phish-002 | Y | Y | **v3** | Y | Y | Y | v1 |
-| demo-phish-003 | Y | Y | v2 | Y | Y | Y | v1 |
-| demo-phish-004 | Y | Y | v2 | Y | Y | Y | v1 |
-| demo-phish-005 | Y | Y | v2 | Y | Y | Y | v1 |
-| demo-mixed-002 | Y | Y | v2 | Y | Y | Y | v1 |
-| demo-legit-001 | Y | Y | v2 | — | — | — | — |
-| demo-news-001/2/3 | Y | Y | v2 | — | — | — | — |
-| demo-work-001/2/3 | Y | Y | v2 | — | — | — | — |
-| demo-pers-001/2/3 | Y | Y | v2 | — | — | — | — |
-| demo-notif-001/2/3 | Y | Y | v2 | — | — | — | — |
-| demo-mixed-001 | Y | Y | v2 | — | — | — | — |
+| demo-legit-001 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-mixed-001 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-mixed-002 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-news-001 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-news-002 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-news-003 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-notif-001 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-notif-002 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-notif-003 | Y | Y | v3 | N (newsletter) | N | N | v3 (stamped) |
+| demo-pers-001 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-pers-002 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-pers-003 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-phish-001 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-phish-002 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-phish-003 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-phish-004 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-phish-005 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-work-001 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-work-002 | Y | Y | v3 | Y | Y | Y | v3 |
+| demo-work-003 | Y | Y | v3 | Y | Y | Y | v3 |
 
-**Gemini calls needed to fully process all 20 demo emails (cache misses):**
-- `priority`: 20 calls (none cached — no `priority` task type in demo cache)
-- `phishing_social`: 13 calls (7 cached: demo-phish-001–005, demo-mixed-002, demo-notif-002/003 partially)
-- `explanation`: 14 calls (6 cached: demo-phish-001–005, demo-mixed-002)
-- `claim_decomposition`: 14 calls (6 cached)
-- **Total: 61 Gemini API calls** (some may hit rate limits without a paid key)
-
-Additionally: re-running MiniCheck NLI verification (no Gemini) on all 20 emails' claims would be needed for the 6 that have v1 verified_claims, to stamp them v3.
-
-**This session did NOT make any of these calls. Waiting for user approval.**
+**Summary:**
+- Priority scored: 20/20 (100%)
+- Fraud scored (`fraud_version=v3`): 20/20 (100%)
+- Verification complete (`verification_version=v3`): 20/20 (100%)
+  - 13 non-newsletter emails have full verified explanations and verified claims.
+  - 7 newsletter emails (including promo/bulk notifications) have no claims by design and are stamped `v3`.
 
